@@ -1,0 +1,892 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Clavier Perdu</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#eef2ea; --panel:#ffffff; --panel-alt:#e4ece0; --grid-line:#c9d6c2;
+    --text:#1f2a24; --muted:#5a6b60; --accent:#0e7c66; --wall:#8a9a8f;
+    --floor:#dbe6d4; --floor-text:#9fb096; --danger:#b23b3b;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --bg:#0b0f11; --panel:#121a1d; --panel-alt:#182226; --grid-line:#23343a;
+      --text:#d7e4e0; --muted:#7f9490; --accent:#35d0ba; --wall:#2a3a3f;
+      --floor:#182226; --floor-text:#33474d; --danger:#e05a5a;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg:#0b0f11; --panel:#121a1d; --panel-alt:#182226; --grid-line:#23343a;
+    --text:#d7e4e0; --muted:#7f9490; --accent:#35d0ba; --wall:#2a3a3f;
+    --floor:#182226; --floor-text:#33474d; --danger:#e05a5a;
+    color-scheme: dark;
+  }
+
+  *{ box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  body{
+    margin:0; background:var(--bg); color:var(--text);
+    font-family:'IBM Plex Mono', 'Courier New', monospace;
+    min-height:100vh; display:flex; justify-content:center;
+    padding:14px 10px 34px;
+  }
+  .app{ width:100%; max-width:420px; }
+
+  h1{ font-size:1.15rem; font-weight:700; letter-spacing:0.02em; margin:0 0 2px; text-align:center; }
+  .tagline{ text-align:center; font-size:0.68rem; color:var(--muted); margin-bottom:14px; }
+
+  .mode-card{ background:var(--panel); border:1px solid var(--grid-line); border-radius:6px; padding:14px; margin-bottom:12px; }
+  .mode-card p{ font-size:0.72rem; color:var(--muted); line-height:1.55; margin:0 0 10px; }
+  .mode-btn{
+    display:block; width:100%; text-align:left; background:var(--panel-alt);
+    border:1px solid var(--grid-line); border-radius:5px; padding:10px 12px;
+    margin-bottom:8px; color:var(--text); font-family:inherit; cursor:pointer;
+  }
+  .mode-btn b{ display:block; font-size:0.82rem; color:var(--accent); margin-bottom:3px; }
+  .mode-btn span{ font-size:0.68rem; color:var(--muted); line-height:1.5; }
+  .mode-btn:active{ transform:translateY(1px); }
+
+  .hud{ display:grid; grid-template-columns:repeat(4,1fr); gap:6px; margin-bottom:10px; }
+  .hud div{ background:var(--panel); border:1px solid var(--grid-line); border-radius:4px; padding:5px 4px; text-align:center; font-size:0.58rem; color:var(--muted); }
+  .hud b{ display:block; font-size:0.78rem; color:var(--text); }
+
+  .map-wrap{ display:flex; justify-content:center; margin-bottom:10px; }
+  .map-grid{
+    display:grid; grid-template-columns:repeat(12, 27px); grid-template-rows:repeat(8, 27px);
+    gap:2px; background:var(--grid-line); padding:2px; border-radius:4px;
+  }
+  .tile{
+    width:27px; height:27px; display:flex; align-items:center; justify-content:center;
+    font-size:0.72rem; font-weight:700; background:var(--floor); color:var(--floor-text); border-radius:1px;
+    overflow:hidden;
+  }
+  .tile.cache{ background:var(--panel-alt); border:1px solid var(--accent); padding:1px; }
+  .tile.player{ background:var(--accent); color:var(--panel); }
+
+  .mosaic{ display:grid; grid-template-columns:repeat(5,1fr); grid-template-rows:repeat(5,1fr); width:100%; height:100%; gap:0.5px; }
+  .mosaic div{ background:transparent; }
+
+  #enter-btn{ margin-bottom:10px; }
+  .drop-buttons{ display:grid; grid-template-columns:1fr 1fr; gap:6px; }
+  .drop-buttons .btn{ margin-top:0; }
+
+  .dpad{
+    display:grid; grid-template-columns:repeat(3, 44px); grid-template-rows:repeat(3, 44px);
+    gap:6px; justify-content:center; margin-bottom:10px;
+  }
+  .dpad button{ background:var(--panel); border:1px solid var(--grid-line); border-radius:5px; color:var(--text); font-size:1rem; font-family:inherit; cursor:pointer; }
+  .dpad button:active{ background:var(--panel-alt); }
+  .dpad .empty{ background:transparent; border:none; }
+
+  .hint{ text-align:center; font-size:0.6rem; color:var(--muted); margin-top:4px; line-height:1.5; }
+
+  .panel{ background:var(--panel); border:1px solid var(--grid-line); border-radius:6px; padding:12px; }
+  .panel h2{ font-size:0.85rem; margin:0 0 8px; }
+  .panel .btn.top-close{ margin-bottom:12px; }
+
+  .section-label{ font-size:0.6rem; color:var(--muted); margin:8px 0 4px; }
+
+  .key-grid{
+    display:grid; grid-template-columns:repeat(5, 1fr); gap:6px; margin-bottom:10px; min-height:40px;
+    max-height:280px; overflow-y:auto; padding-right:2px;
+  }
+  .key-empty{ width:32px; height:32px; border-radius:4px; border:2px dashed var(--grid-line); }
+  .key{
+    width:32px; height:32px; border-radius:4px; display:flex; align-items:center; justify-content:center;
+    font-weight:700; font-size:0.8rem; color:#fff; cursor:pointer; border:2px solid transparent;
+    transition:transform 0.1s ease; flex-shrink:0;
+  }
+  .key:active{ transform:scale(0.92); }
+  .key.selected{ border-color:var(--text); box-shadow:0 0 0 2px var(--accent); }
+  .key.shake, .slot.shake, .cat-btn.shake{ animation:shake 0.3s ease; }
+  @keyframes shake{ 0%,100%{transform:translateX(0);} 25%{transform:translateX(-4px);} 75%{transform:translateX(4px);} }
+
+  .toast{ font-size:0.65rem; color:var(--danger); text-align:center; min-height:14px; margin:-2px 0 8px; }
+
+  .btn{
+    background:var(--accent); color:#fff; border:none; border-radius:4px; padding:8px 14px;
+    font-family:inherit; font-size:0.7rem; font-weight:600; cursor:pointer; display:block; width:100%;
+  }
+  .btn:active{ transform:translateY(1px); }
+  .btn.secondary{ background:var(--panel-alt); color:var(--text); border:1px solid var(--grid-line); margin-top:6px; }
+  .btn:disabled{ opacity:0.5; cursor:default; }
+
+  .tray-strip{
+    display:flex; flex-wrap:wrap; gap:6px; margin-bottom:8px; min-height:36px;
+    padding:6px; background:var(--panel-alt); border-radius:4px; max-height:110px; overflow-y:auto;
+  }
+  .tray-strip:empty::after{ content:"Inventaire vide"; font-size:0.62rem; color:var(--muted); }
+
+  .active-section{ text-align:center; margin-bottom:6px; padding:10px; background:var(--panel-alt); border-radius:6px; }
+  .active-swatch{
+    width:52px; height:52px; border-radius:8px; display:flex; align-items:center; justify-content:center;
+    font-size:1.3rem; font-weight:700; color:#fff; margin:0 auto 8px;
+  }
+  .active-empty{ font-size:0.66rem; color:var(--muted); margin-bottom:8px; }
+  .cat-buttons{ display:grid; grid-template-columns:repeat(2,1fr); gap:6px; }
+  .cat-btn{
+    background:var(--panel); border:1px solid var(--grid-line); border-radius:5px; padding:9px 4px;
+    font-family:inherit; font-size:0.66rem; font-weight:600; color:var(--text); cursor:pointer;
+  }
+  .cat-btn:disabled{ opacity:0.4; cursor:default; }
+  .cat-btn:active:not(:disabled){ background:var(--accent); color:#fff; }
+
+  .board-group{ margin-top:14px; margin-bottom:14px; padding-bottom:10px; border-bottom:1px solid var(--grid-line); }
+  .board-group:last-child{ border-bottom:none; }
+  .board-group.locked{ opacity:0.55; }
+  .group-head{ font-size:0.66rem; color:var(--muted); margin-bottom:6px; display:flex; justify-content:space-between; }
+  .zone{ margin-bottom:6px; }
+  .zone-label{ font-size:0.56rem; color:var(--muted); margin-bottom:3px; }
+  .kb-row{ display:flex; gap:4px; margin-bottom:4px; }
+  .slot{
+    width:26px; height:26px; border-radius:4px; display:flex; align-items:center; justify-content:center;
+    font-weight:700; font-size:0.68rem; border:2px dashed var(--grid-line); color:var(--grid-line);
+    flex-shrink:0;
+  }
+  .slot.filled{ border-style:solid; color:#fff; }
+  .slot.locked{ opacity:0.35; }
+
+  .overlay{ position:fixed; inset:0; background:rgba(0,0,0,0.72); display:none; align-items:center; justify-content:center; padding:20px; z-index:10; }
+  .overlay.show{ display:flex; }
+  .card{ background:var(--panel); border-radius:6px; padding:24px 20px; max-width:320px; text-align:center; }
+  .card h2{ color:var(--accent); margin:0 0 6px; }
+  .card p{ font-size:0.72rem; color:var(--muted); margin:0 0 16px; line-height:1.6; }
+
+  .hidden{ display:none !important; }
+</style>
+</head>
+<body>
+<div class="app">
+  <h1>&#9000;&#65039; Clavier Perdu</h1>
+  <div class="tagline">Chaque étagère cache un vrai clavier complet à reconstituer. Ta partie se sauvegarde automatiquement sur cet appareil.</div>
+
+  <div id="screen-mode">
+    <div class="mode-card">
+      <button class="btn hidden" id="resume-btn" style="margin-bottom:10px;">Reprendre la partie sauvegardée</button>
+      <p>10 étagères disposées sur le pourtour de la salle, une par couleur. Les caches de touches tombées (25 max chacune) sont regroupées en damier au centre, avec de quoi circuler tout autour. Déplace-toi puis appuie sur "Entrer" pour ouvrir ce qui se trouve sous tes pieds. Chaque touche placée rapporte 1$ : sers-t'en pour agrandir ton sac (départ à 2 places, +1 à chaque achat, coût qui augmente de 10$ à chaque fois). À chaque étagère, ta touche la plus ancienne de cette couleur est active : appuie sur la grande catégorie qui lui correspond (Chiffres, Symboles, MAJUSCULES ou minuscules) pour la ranger — les lettres se classent toutes seules en ordre alphabétique.</p>
+      <button class="mode-btn" id="btn-dependance">
+        <b>Mode Dépendance</b>
+        <span>Le clavier se répare en 2 blocs : Bloc A (chiffres &amp; symboles), Bloc B (lettres). B reste verrouillé tant que A n'est pas à moitié rempli.</span>
+      </button>
+      <button class="mode-btn" id="btn-souscla">
+        <b>Mode Sous-claviers</b>
+        <span>Les 4 catégories du clavier sont ouvertes dès le départ.</span>
+      </button>
+    </div>
+  </div>
+
+  <div id="screen-game" class="hidden">
+    <div class="hud" style="grid-template-columns:repeat(5,1fr);">
+      <div>MODE<b id="hud-mode">-</b></div>
+      <div>TOUCHES<b id="hud-placed">0/720</b></div>
+      <div>SAC<b id="hud-tray">0/2</b></div>
+      <div>$<b id="hud-money">0</b></div>
+      <div>ERREURS<b id="hud-mistakes">0</b></div>
+    </div>
+    <div id="save-status" style="text-align:center;font-size:0.55rem;color:var(--danger);margin:-4px 0 8px;"></div>
+
+    <div id="view-map">
+      <div class="map-wrap"><div class="map-grid" id="map-grid"></div></div>
+      <button class="btn" id="enter-btn">Rien à faire ici</button>
+      <div class="section-label">Boutique</div>
+      <button class="btn secondary" id="shop-upgrade-btn">Améliorer la capacité du sac (+1) — 10$</button>
+      <div class="dpad">
+        <div class="empty"></div><button id="btn-up">&#9650;</button><div class="empty"></div>
+        <button id="btn-left">&#9664;</button><div class="empty"></div><button id="btn-right">&#9654;</button>
+        <div class="empty"></div><button id="btn-down">&#9660;</button><div class="empty"></div>
+      </div>
+      <div class="section-label">Ton sac</div>
+      <div class="tray-strip" id="map-tray"></div>
+      <div class="drop-buttons">
+        <button class="btn secondary" id="map-drop-btn">Déposer sélection</button>
+        <button class="btn secondary" id="map-drop-all-btn">Tout déposer</button>
+      </div>
+      <div class="hint" id="map-hint">@ = toi &middot; mosaïque colorée = cache ou tas déposé (25 max) &middot; case colorée sur le pourtour = étagère &middot; déplace-toi puis appuie sur Entrer</div>
+    </div>
+
+    <div id="view-cache" class="panel hidden">
+      <button class="btn secondary top-close" id="cache-close">Retour à la carte</button>
+      <h2 id="cache-title">Cache</h2>
+      <div class="key-grid" id="cache-grid"></div>
+      <div class="toast" id="cache-toast"></div>
+    </div>
+
+    <div id="view-shelf" class="panel hidden">
+      <button class="btn secondary top-close" id="shelf-close">Retour à la carte</button>
+      <h2 id="shelf-title">Étagère</h2>
+
+      <div class="active-section">
+        <div id="active-box"></div>
+        <div class="cat-buttons" id="cat-buttons"></div>
+      </div>
+
+      <div class="section-label">Ton sac (pour déposer une touche ailleurs)</div>
+      <div class="tray-strip" id="shelf-tray"></div>
+      <div class="drop-buttons">
+        <button class="btn secondary" id="shelf-drop-btn">Déposer sélection</button>
+        <button class="btn secondary" id="shelf-drop-all-btn">Tout déposer</button>
+      </div>
+      <div id="shelf-ground"></div>
+      <div id="shelf-boards"></div>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="overlay">
+  <div class="card">
+    <h2>Tous les claviers sont réparés !</h2>
+    <p id="summary"></p>
+    <button class="btn" id="restart">Nouvel atelier</button>
+  </div>
+</div>
+
+<script>
+(function(){
+  const SAVE_KEY='clavierPerduSaveV4';
+  const COLORS=[
+    {id:'rouge', label:'Rouge', hex:'#c0392b'},
+    {id:'orange', label:'Orange', hex:'#c8641b'},
+    {id:'jaune', label:'Jaune', hex:'#a9840a'},
+    {id:'vert', label:'Vert', hex:'#1f8a4c'},
+    {id:'turquoise', label:'Turquoise', hex:'#159a88'},
+    {id:'bleu', label:'Bleu', hex:'#1f6fb2'},
+    {id:'indigo', label:'Indigo', hex:'#4a3fb0'},
+    {id:'violet', label:'Violet', hex:'#7e3fa6'},
+    {id:'rose', label:'Rose', hex:'#c23974'},
+    {id:'marron', label:'Marron', hex:'#7a5230'},
+  ];
+
+  const LAYOUT = {
+    digits: ['1','2','3','4','5','6','7','8','9','0'],
+    specials: ['!','@','#','$','%','^','&','*','(',')'],
+    upperLetters: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split(''),
+    lowerLetters: 'abcdefghijklmnopqrstuvwxyz'.split('')
+  };
+  const ROW_SIZES=[10,10,6];
+  const ZONE_LABEL={digits:'Chiffres', specials:'Symboles', upper:'MAJUSCULES', lower:'minuscules'};
+
+  const COLS=12, ROWS=8;
+  const BASE_CAP=2, MAX_CAP=40;
+  const PILE_MAX=25;
+
+  function colorOf(id){ return COLORS.find(c=>c.id===id); }
+  function shuffle(arr){ for(let i=arr.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [arr[i],arr[j]]=[arr[j],arr[i]]; } return arr; }
+
+  let state = null;
+
+  function saveGame(){
+    if(!state) return false;
+    try{
+      localStorage.setItem(SAVE_KEY, JSON.stringify(state));
+      state._lastSaveOk = true;
+      return true;
+    }catch(e){
+      state._lastSaveOk = false;
+      return false;
+    }
+  }
+  function loadSavedGame(){
+    try{ const raw = localStorage.getItem(SAVE_KEY); if(!raw) return null; return JSON.parse(raw); }catch(e){ return null; }
+  }
+  function clearSave(){ try{ localStorage.removeItem(SAVE_KEY); }catch(e){} }
+
+  function fullCharList(){
+    const list=[];
+    LAYOUT.digits.forEach(ch=>list.push({type:'digits',char:ch}));
+    LAYOUT.specials.forEach(ch=>list.push({type:'specials',char:ch}));
+    LAYOUT.upperLetters.forEach(ch=>list.push({type:'upper',char:ch}));
+    LAYOUT.lowerLetters.forEach(ch=>list.push({type:'lower',char:ch}));
+    return list; // 72
+  }
+
+  function buildPool(){
+    const pool=[];
+    COLORS.forEach(c=>{
+      fullCharList().forEach(item=>{
+        pool.push({ uid:Math.random().toString(36).slice(2,9), color:c.id, type:item.type, char:item.char });
+      });
+    });
+    return pool; // 720
+  }
+
+  function makeZoneFlat(chars){ return chars.map(ch=>({char:ch, filled:false})); }
+
+  function buildKeyboards(mode){
+    const kb={};
+    COLORS.forEach(c=>{
+      const digits=makeZoneFlat(LAYOUT.digits);
+      const specials=makeZoneFlat(LAYOUT.specials);
+      const upper={collected:[]};
+      const lower={collected:[]};
+      if(mode==='dependance'){
+        kb[c.id] = { A:{ locked:false, digits, specials }, B:{ locked:true, upper, lower } };
+      } else {
+        kb[c.id] = { digits, specials, upper, lower };
+      }
+    });
+    return kb;
+  }
+
+  function countFlat(zone){ return zone.filter(s=>s.filled).length; }
+
+  function getZone(colorId, zoneName){
+    const kb=state.keyboards[colorId];
+    if(state.mode==='dependance'){
+      return (zoneName==='digits'||zoneName==='specials') ? kb.A[zoneName] : kb.B[zoneName];
+    }
+    return kb[zoneName];
+  }
+  function getLocked(colorId, zoneName){
+    if(state.mode!=='dependance') return false;
+    const kb=state.keyboards[colorId];
+    return (zoneName==='digits'||zoneName==='specials') ? kb.A.locked : kb.B.locked;
+  }
+  function afterPlaceCheckUnlock(colorId){
+    if(state.mode!=='dependance') return;
+    const kb=state.keyboards[colorId];
+    if(kb.B.locked){
+      const haveA = countFlat(kb.A.digits)+countFlat(kb.A.specials);
+      if(haveA>=10) kb.B.locked=false;
+    }
+  }
+
+  function shelfDone(colorId){
+    const kb=state.keyboards[colorId];
+    if(state.mode==='dependance'){
+      return countFlat(kb.A.digits)+countFlat(kb.A.specials)>=20 && kb.B.upper.collected.length+kb.B.lower.collected.length>=52;
+    }
+    return countFlat(kb.digits)>=10 && countFlat(kb.specials)>=10 && kb.upper.collected.length>=26 && kb.lower.collected.length>=26;
+  }
+
+  function getTrayCap(){
+    return Math.min(BASE_CAP + state.trayUpgrades, MAX_CAP);
+  }
+  function upgradeCost(){
+    return (state.trayUpgrades+1)*10;
+  }
+  function buyTrayUpgrade(){
+    if(getTrayCap()>=MAX_CAP) return;
+    const cost=upgradeCost();
+    if(state.money<cost) return;
+    state.money-=cost;
+    state.trayUpgrades++;
+    renderAll();
+  }
+
+  function computeCacheSizes(total){
+    const sizes=[]; let remaining=total;
+    while(remaining>0){ const s=Math.min(PILE_MAX, remaining); sizes.push(s); remaining-=s; }
+    return sizes;
+  }
+
+  function generateMap(pool){
+    const sizes = computeCacheSizes(pool.length);
+    const numCaches = sizes.length;
+
+    const perim=[];
+    for(let x=0;x<COLS;x++) perim.push({x,y:0});
+    for(let y=1;y<ROWS-1;y++) perim.push({x:COLS-1,y});
+    for(let x=COLS-1;x>=0;x--) perim.push({x,y:ROWS-1});
+    for(let y=ROWS-2;y>=1;y--) perim.push({x:0,y});
+
+    const step = perim.length/10;
+    const shelfCoords=[];
+    for(let i=0;i<10;i++) shelfCoords.push(perim[Math.floor(i*step)]);
+
+    const perimSet = new Set(perim.map(p=>p.x+','+p.y));
+    const evenCells=[], oddCells=[];
+    for(let y=1;y<ROWS-1;y++){
+      for(let x=1;x<COLS-1;x++){
+        const cell = {x,y};
+        if((x+y)%2===0) evenCells.push(cell); else oddCells.push(cell);
+      }
+    }
+    shuffle(evenCells); shuffle(oddCells);
+    const start = oddCells[0];
+    const cachesCoords = evenCells.slice(0, numCaches);
+
+    const grid=[];
+    for(let y=0;y<ROWS;y++){
+      const row=[];
+      for(let x=0;x<COLS;x++) row.push({type:'floor'});
+      grid.push(row);
+    }
+    shelfCoords.forEach((p,i)=>{ grid[p.y][p.x]={type:'shelf', color:COLORS[i].id}; });
+    const pool2=shuffle(pool.slice());
+    let idx=0;
+    cachesCoords.forEach((p,i)=>{
+      const n=sizes[i];
+      grid[p.y][p.x]={type:'cache', size:n, keys:pool2.slice(idx, idx+n)};
+      idx+=n;
+    });
+
+    return {grid, start};
+  }
+
+  function startGame(mode){
+    const pool = buildPool();
+    const {grid, start} = generateMap(pool);
+    state = {
+      mode, grid, player:{x:start.x,y:start.y},
+      tray:[], selectedUid:null,
+      keyboards: buildKeyboards(mode),
+      groundPiles: {},
+      totalPlaced:0, score:0, mistakes:0, money:0, trayUpgrades:0,
+      panel:'map', activeShelf:null
+    };
+    document.getElementById('screen-mode').classList.add('hidden');
+    document.getElementById('screen-game').classList.remove('hidden');
+    document.getElementById('hud-mode').textContent = mode==='dependance' ? 'Dépend.' : 'Sous-cla';
+    renderAll();
+  }
+
+  function resumeGame(){
+    const saved = loadSavedGame();
+    if(!saved) return;
+    try{
+      state = saved;
+      document.getElementById('screen-mode').classList.add('hidden');
+      document.getElementById('screen-game').classList.remove('hidden');
+      document.getElementById('hud-mode').textContent = state.mode==='dependance' ? 'Dépend.' : 'Sous-cla';
+      renderAll();
+    }catch(e){
+      clearSave();
+      document.getElementById('resume-btn').textContent = 'Sauvegarde illisible — nouvelle partie requise';
+      document.getElementById('resume-btn').disabled = true;
+    }
+  }
+
+  function move(dx,dy){
+    if(state.panel!=='map') return;
+    const nx=state.player.x+dx, ny=state.player.y+dy;
+    if(nx<0||ny<0||nx>=COLS||ny>=ROWS) return;
+    state.player.x=nx; state.player.y=ny;
+    renderAll();
+  }
+
+  function currentEnterable(){
+    const cell = state.grid[state.player.y][state.player.x];
+    const coordKey = state.player.x+','+state.player.y;
+    if(cell.type==='cache' && cell.keys && cell.keys.some(k=>!k.taken)) return {type:'cache', label:'Entrer dans la cache'};
+    if(cell.type==='shelf') return {type:'shelf', label:'Entrer dans l\u2019\u00e9tag\u00e8re ' + colorOf(cell.color).label, color:cell.color};
+    if(state.groundPiles[coordKey] && state.groundPiles[coordKey].some(k=>!k.taken)) return {type:'cache', label:'Reprendre tes touches déposées'};
+    return null;
+  }
+
+  function enterCurrentTile(){
+    const info = currentEnterable();
+    if(!info) return;
+    if(info.type==='cache') state.panel='cache';
+    else if(info.type==='shelf'){ state.panel='shelf'; state.activeShelf=info.color; }
+    renderAll();
+  }
+
+  function renderAll(){
+    renderHud();
+    document.getElementById('view-map').classList.toggle('hidden', state.panel!=='map');
+    document.getElementById('view-cache').classList.toggle('hidden', state.panel!=='cache');
+    document.getElementById('view-shelf').classList.toggle('hidden', state.panel!=='shelf');
+    if(state.panel==='map') renderMapPanel();
+    if(state.panel==='cache') renderCache();
+    if(state.panel==='shelf') renderShelf();
+    saveGame();
+  }
+
+  function renderHud(){
+    document.getElementById('hud-placed').textContent = state.totalPlaced+'/720';
+    document.getElementById('hud-tray').textContent = state.tray.length+'/'+getTrayCap();
+    document.getElementById('hud-money').textContent = state.money+'$';
+    document.getElementById('hud-mistakes').textContent = state.mistakes;
+    document.getElementById('save-status').textContent = state._lastSaveOk===false ? '\u26A0\uFE0F Sauvegarde impossible sur cet appareil/navigateur' : '';
+  }
+
+  function renderTrayInto(containerId, onSelect){
+    const el=document.getElementById(containerId);
+    el.innerHTML='';
+    state.tray.forEach(k=>{
+      const d=document.createElement('div');
+      d.className='key'+(state.selectedUid===k.uid ? ' selected' : '');
+      d.style.background=colorOf(k.color).hex;
+      d.textContent=k.char;
+      d.addEventListener('click', ()=>{
+        state.selectedUid = state.selectedUid===k.uid ? null : k.uid;
+        onSelect();
+      });
+      el.appendChild(d);
+    });
+  }
+
+  function updateDropButton(btnId){
+    const btn=document.getElementById(btnId);
+    const canDrop = !!state.selectedUid;
+    btn.disabled = !canDrop;
+  }
+  function updateDropAllButton(btnId){
+    const btn=document.getElementById(btnId);
+    btn.disabled = state.tray.length===0;
+  }
+
+  function dropSelected(){
+    if(!state.selectedUid) return;
+    const cell = state.grid[state.player.y][state.player.x];
+    const key = state.tray.find(k=>k.uid===state.selectedUid);
+    if(!key) return;
+    if(cell.type==='cache'){
+      if(!cell.keys) cell.keys=[];
+      cell.keys.push(key);
+    } else {
+      const coordKey=state.player.x+','+state.player.y;
+      if(!state.groundPiles[coordKey]) state.groundPiles[coordKey]=[];
+      state.groundPiles[coordKey].push(key);
+    }
+    state.tray = state.tray.filter(k=>k.uid!==key.uid);
+    state.selectedUid=null;
+    renderAll();
+  }
+
+  function dropAll(){
+    if(state.tray.length===0) return;
+    const cell = state.grid[state.player.y][state.player.x];
+    const keysToDrop = state.tray.slice();
+    if(cell.type==='cache'){
+      if(!cell.keys) cell.keys=[];
+      cell.keys.push(...keysToDrop);
+    } else {
+      const coordKey=state.player.x+','+state.player.y;
+      if(!state.groundPiles[coordKey]) state.groundPiles[coordKey]=[];
+      state.groundPiles[coordKey].push(...keysToDrop);
+    }
+    state.tray=[];
+    state.selectedUid=null;
+    renderAll();
+  }
+
+  function renderMapPanel(){
+    renderMap();
+    renderTrayInto('map-tray', renderMapPanel);
+    updateDropButton('map-drop-btn');
+    updateDropAllButton('map-drop-all-btn');
+    const info = currentEnterable();
+    const btn = document.getElementById('enter-btn');
+    btn.disabled = !info;
+    btn.textContent = info ? info.label : 'Rien à faire ici';
+    const shopBtn = document.getElementById('shop-upgrade-btn');
+    if(getTrayCap()>=MAX_CAP){
+      shopBtn.textContent = 'Capacité maximale atteinte';
+      shopBtn.disabled = true;
+    } else {
+      const cost = upgradeCost();
+      shopBtn.textContent = 'Améliorer la capacité du sac (+1) — ' + cost + '$';
+      shopBtn.disabled = state.money < cost;
+    }
+  }
+
+  function buildMosaic(container, keysArr){
+    const mosaic=document.createElement('div');
+    mosaic.className='mosaic';
+    for(let i=0;i<25;i++){
+      const cellDiv=document.createElement('div');
+      if(keysArr[i] && !keysArr[i].taken) cellDiv.style.background = colorOf(keysArr[i].color).hex;
+      mosaic.appendChild(cellDiv);
+    }
+    container.appendChild(mosaic);
+  }
+
+  function renderMap(){
+    const el = document.getElementById('map-grid');
+    el.innerHTML='';
+    for(let y=0;y<ROWS;y++){
+      for(let x=0;x<COLS;x++){
+        const cell = state.grid[y][x];
+        const div = document.createElement('div');
+        let cls='tile', ch=null, mosaicArr=null;
+        div.style.background=''; div.style.color='';
+        if(cell.type==='cache'){
+          if(cell.keys && cell.keys.some(k=>!k.taken)){ cls+=' cache'; mosaicArr=cell.keys; }
+          else ch='.';
+        } else if(cell.type==='shelf'){
+          const c = colorOf(cell.color);
+          div.style.background = c.hex; div.style.color = '#fff';
+          ch = shelfDone(cell.color) ? '\u2713' : 'S';
+        } else {
+          const gp = state.groundPiles[x+','+y];
+          if(gp && gp.some(k=>!k.taken)){ cls+=' cache'; mosaicArr=gp; }
+          else ch='.';
+        }
+        if(state.player.x===x && state.player.y===y){
+          cls='tile player'; ch='@'; mosaicArr=null; div.style.background=''; div.style.color='';
+        }
+        div.className=cls;
+        if(mosaicArr) buildMosaic(div, mosaicArr);
+        else div.textContent=ch;
+        el.appendChild(div);
+      }
+    }
+  }
+
+  function currentPileInfo(){
+    const cell = state.grid[state.player.y][state.player.x];
+    const coordKey = state.player.x+','+state.player.y;
+    if(cell.type==='cache') return {source:'cache', arr:cell.keys, cell};
+    return {source:'ground', arr:state.groundPiles[coordKey], coordKey};
+  }
+
+  function renderCache(){
+    const info = currentPileInfo();
+    const arr = info.arr || [];
+    const remaining = arr.filter(k=>!k.taken).length;
+    document.getElementById('cache-title').textContent = (info.source==='ground' ? 'Touches déposées (' : 'Cache (') + remaining + ' restantes)';
+    const grid = document.getElementById('cache-grid');
+    grid.innerHTML='';
+    document.getElementById('cache-toast').textContent='';
+    arr.forEach(k=>{
+      const d=document.createElement('div');
+      if(k.taken){
+        d.className='key-empty';
+      } else {
+        d.className='key';
+        d.style.background=colorOf(k.color).hex;
+        d.textContent=k.char;
+        d.addEventListener('click', ()=>collectKeyGeneric(k, info, d));
+      }
+      grid.appendChild(d);
+    });
+  }
+
+  function collectKeyGeneric(key, info, el){
+    if(state.tray.length>=getTrayCap()){
+      document.getElementById('cache-toast').textContent='Inventaire plein — direction une étagère !';
+      el.classList.add('shake'); setTimeout(()=>el.classList.remove('shake'), 300);
+      return;
+    }
+    key.taken = true;
+    state.tray.push(key);
+    renderCache(); renderHud(); saveGame();
+  }
+
+  function renderShelfGroundPile(container, coordKey){
+    const pile = state.groundPiles[coordKey];
+    if(!pile || pile.length===0) return;
+    const label=document.createElement('div');
+    label.className='section-label';
+    label.textContent='Touches déposées ici (' + pile.length + ') — touche pour les reprendre';
+    container.appendChild(label);
+    const row=document.createElement('div'); row.className='key-grid'; row.style.maxHeight='90px';
+    pile.forEach(k=>{
+      const d=document.createElement('div'); d.className='key';
+      d.style.background=colorOf(k.color).hex; d.textContent=k.char;
+      d.addEventListener('click', ()=>{
+        if(state.tray.length>=getTrayCap()) return;
+        state.groundPiles[coordKey] = state.groundPiles[coordKey].filter(x=>x.uid!==k.uid);
+        state.tray.push(k);
+        renderShelf(); renderHud(); saveGame();
+      });
+      row.appendChild(d);
+    });
+    container.appendChild(row);
+  }
+
+  function mistakeShake(el){
+    state.mistakes++;
+    state.score=Math.max(0, state.score-2);
+    if(el){ el.classList.add('shake'); setTimeout(()=>el.classList.remove('shake'), 300); }
+    renderHud(); saveGame();
+  }
+
+  function renderActiveSection(colorId){
+    const box=document.getElementById('active-box');
+    const cats=document.getElementById('cat-buttons');
+    box.innerHTML=''; cats.innerHTML='';
+    const key = state.tray.find(k=>k.color===colorId);
+    if(!key){
+      const empty=document.createElement('div');
+      empty.className='active-empty';
+      empty.textContent='Aucune touche ' + colorOf(colorId).label.toLowerCase() + ' dans ton sac pour le moment.';
+      box.appendChild(empty);
+    } else {
+      const sw=document.createElement('div');
+      sw.className='active-swatch';
+      sw.style.background=colorOf(colorId).hex;
+      sw.textContent=key.char;
+      box.appendChild(sw);
+    }
+    ['digits','specials','upper','lower'].forEach(z=>{
+      const btn=document.createElement('button');
+      btn.className='cat-btn';
+      const locked=getLocked(colorId,z);
+      btn.textContent = ZONE_LABEL[z] + (locked ? ' \uD83D\uDD12' : '');
+      btn.disabled = !key || locked;
+      btn.addEventListener('click', ()=>attemptPlaceActive(colorId, z, btn));
+      cats.appendChild(btn);
+    });
+  }
+
+  function attemptPlaceActive(colorId, zoneName, btnEl){
+    const key = state.tray.find(k=>k.color===colorId);
+    if(!key) return;
+    if(getLocked(colorId, zoneName)){ mistakeShake(btnEl); return; }
+    if(key.type!==zoneName){ mistakeShake(btnEl); return; }
+
+    if(zoneName==='digits' || zoneName==='specials'){
+      const zone=getZone(colorId, zoneName);
+      const slot=zone.find(s=>s.char===key.char && !s.filled);
+      if(slot) slot.filled=true;
+    } else {
+      const zoneObj=getZone(colorId, zoneName);
+      zoneObj.collected.push(key.char);
+    }
+    afterPlaceCheckUnlock(colorId);
+    state.tray = state.tray.filter(k=>k.uid!==key.uid);
+    state.totalPlaced++;
+    state.score+=10;
+    state.money+=1;
+    renderShelf(); renderHud(); checkWin(); saveGame();
+  }
+
+  function renderFlatZoneDisplay(container, colorId, zoneName){
+    const zone = getZone(colorId, zoneName);
+    const locked = getLocked(colorId, zoneName);
+    const have = countFlat(zone);
+    const label=document.createElement('div');
+    label.className='zone-label';
+    label.textContent = ZONE_LABEL[zoneName] + ' (' + have + '/' + zone.length + ')';
+    container.appendChild(label);
+    const row=document.createElement('div'); row.className='kb-row';
+    zone.forEach(slot=>{
+      const s=document.createElement('div');
+      let cls='slot';
+      if(slot.filled){ cls+=' filled'; s.style.background=colorOf(colorId).hex; }
+      if(locked) cls+=' locked';
+      s.className=cls;
+      s.textContent = slot.filled ? slot.char : '';
+      s.style.opacity = slot.filled ? '1' : (locked ? '0.35' : '0.55');
+      row.appendChild(s);
+    });
+    container.appendChild(row);
+  }
+
+  function renderLetterZoneDisplay(container, colorId, zoneName){
+    const zoneObj = getZone(colorId, zoneName);
+    const locked = getLocked(colorId, zoneName);
+    const sorted = zoneObj.collected.slice().sort();
+    const have = sorted.length;
+    const label=document.createElement('div');
+    label.className='zone-label';
+    label.textContent = ZONE_LABEL[zoneName] + ' (' + have + '/26)';
+    container.appendChild(label);
+    let idx=0;
+    ROW_SIZES.forEach(size=>{
+      const row=document.createElement('div'); row.className='kb-row';
+      for(let i=0;i<size;i++){
+        const ch = sorted[idx] || null; idx++;
+        const s=document.createElement('div');
+        let cls='slot';
+        if(ch){ cls+=' filled'; s.style.background=colorOf(colorId).hex; }
+        if(locked) cls+=' locked';
+        s.className=cls;
+        s.textContent = ch || '';
+        s.style.opacity = ch ? '1' : (locked ? '0.35' : '0.55');
+        row.appendChild(s);
+      }
+      container.appendChild(row);
+    });
+  }
+
+  function renderShelf(){
+    const colorId = state.activeShelf;
+    const c = colorOf(colorId);
+    document.getElementById('shelf-title').innerHTML = '&Eacute;tag&egrave;re ' + c.label;
+
+    renderActiveSection(colorId);
+
+    renderTrayInto('shelf-tray', renderShelf);
+    updateDropButton('shelf-drop-btn');
+    updateDropAllButton('shelf-drop-all-btn');
+
+    const groundEl = document.getElementById('shelf-ground');
+    groundEl.innerHTML='';
+    renderShelfGroundPile(groundEl, state.player.x+','+state.player.y);
+
+    const boards = document.getElementById('shelf-boards');
+    boards.innerHTML='';
+
+    if(state.mode==='dependance'){
+      const kb=state.keyboards[colorId];
+      const groupA=document.createElement('div');
+      groupA.className='board-group'+(kb.A.locked?' locked':'');
+      const headA=document.createElement('div'); headA.className='group-head';
+      const haveA=countFlat(kb.A.digits)+countFlat(kb.A.specials);
+      headA.innerHTML='<span>Bloc A — chiffres &amp; symboles</span><span>'+haveA+'/20'+(kb.A.locked?' &#128274;':'')+'</span>';
+      groupA.appendChild(headA);
+      const zA=document.createElement('div'); zA.className='zone'; renderFlatZoneDisplay(zA,colorId,'digits'); groupA.appendChild(zA);
+      const zA2=document.createElement('div'); zA2.className='zone'; renderFlatZoneDisplay(zA2,colorId,'specials'); groupA.appendChild(zA2);
+      boards.appendChild(groupA);
+
+      const groupB=document.createElement('div');
+      groupB.className='board-group'+(kb.B.locked?' locked':'');
+      const headB=document.createElement('div'); headB.className='group-head';
+      const haveB=kb.B.upper.collected.length+kb.B.lower.collected.length;
+      headB.innerHTML='<span>Bloc B — lettres</span><span>'+haveB+'/52'+(kb.B.locked?' &#128274;':'')+'</span>';
+      groupB.appendChild(headB);
+      const zB=document.createElement('div'); zB.className='zone'; renderLetterZoneDisplay(zB,colorId,'upper'); groupB.appendChild(zB);
+      const zB2=document.createElement('div'); zB2.className='zone'; renderLetterZoneDisplay(zB2,colorId,'lower'); groupB.appendChild(zB2);
+      boards.appendChild(groupB);
+    } else {
+      const group=document.createElement('div'); group.className='board-group';
+      const z1=document.createElement('div'); z1.className='zone'; renderFlatZoneDisplay(z1,colorId,'digits'); group.appendChild(z1);
+      const z2=document.createElement('div'); z2.className='zone'; renderFlatZoneDisplay(z2,colorId,'specials'); group.appendChild(z2);
+      const z3=document.createElement('div'); z3.className='zone'; renderLetterZoneDisplay(z3,colorId,'upper'); group.appendChild(z3);
+      const z4=document.createElement('div'); z4.className='zone'; renderLetterZoneDisplay(z4,colorId,'lower'); group.appendChild(z4);
+      boards.appendChild(group);
+    }
+  }
+
+  function checkWin(){
+    if(state.totalPlaced>=720){
+      document.getElementById('summary').textContent = 'Score : '+state.score+' &middot; Erreurs : '+state.mistakes;
+      document.getElementById('overlay').classList.add('show');
+      clearSave();
+    }
+  }
+
+  const existingSave = loadSavedGame();
+  if(existingSave) document.getElementById('resume-btn').classList.remove('hidden');
+
+  document.getElementById('btn-dependance').addEventListener('click', ()=>startGame('dependance'));
+  document.getElementById('btn-souscla').addEventListener('click', ()=>startGame('souscla'));
+  document.getElementById('resume-btn').addEventListener('click', resumeGame);
+  document.getElementById('btn-up').addEventListener('click', ()=>move(0,-1));
+  document.getElementById('btn-down').addEventListener('click', ()=>move(0,1));
+  document.getElementById('btn-left').addEventListener('click', ()=>move(-1,0));
+  document.getElementById('btn-right').addEventListener('click', ()=>move(1,0));
+  document.getElementById('enter-btn').addEventListener('click', enterCurrentTile);
+  document.getElementById('cache-close').addEventListener('click', ()=>{ state.panel='map'; renderAll(); });
+  document.getElementById('shelf-close').addEventListener('click', ()=>{ state.panel='map'; renderAll(); });
+  document.getElementById('map-drop-btn').addEventListener('click', dropSelected);
+  document.getElementById('map-drop-all-btn').addEventListener('click', dropAll);
+  document.getElementById('shelf-drop-btn').addEventListener('click', dropSelected);
+  document.getElementById('shelf-drop-all-btn').addEventListener('click', dropAll);
+  document.getElementById('shop-upgrade-btn').addEventListener('click', buyTrayUpgrade);
+  document.getElementById('restart').addEventListener('click', ()=>{
+    document.getElementById('overlay').classList.remove('show');
+    document.getElementById('screen-game').classList.add('hidden');
+    document.getElementById('screen-mode').classList.remove('hidden');
+  });
+  window.addEventListener('keydown', (e)=>{
+    if(!state) return;
+    if(e.key==='ArrowUp') move(0,-1);
+    if(e.key==='ArrowDown') move(0,1);
+    if(e.key==='ArrowLeft') move(-1,0);
+    if(e.key==='ArrowRight') move(1,0);
+    if(e.key==='Enter') enterCurrentTile();
+  });
+})();
+</script>
+</body>
+</html>
