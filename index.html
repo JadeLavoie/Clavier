@@ -29,17 +29,24 @@
     color-scheme: dark;
   }
 
-  *{ box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  *{ box-sizing:border-box; -webkit-tap-highlight-color:transparent; touch-action:manipulation; }
+  html, body{ height:100%; overscroll-behavior:none; }
   body{
     margin:0; background:var(--bg); color:var(--text);
     font-family:'IBM Plex Mono', 'Courier New', monospace;
-    min-height:100vh; display:flex; justify-content:center;
-    padding:14px 10px 34px;
+    overflow:hidden;
+    display:flex; justify-content:center;
+    padding:10px 10px 10px;
   }
-  .app{ width:100%; max-width:420px; }
+  .app{
+    width:100%; max-width:420px;
+    height:100dvh; max-height:100dvh;
+    overflow-y:auto; -webkit-overflow-scrolling:touch; overscroll-behavior:contain;
+    padding-bottom:14px;
+  }
 
-  h1{ font-size:1.15rem; font-weight:700; letter-spacing:0.02em; margin:0 0 2px; text-align:center; }
-  .tagline{ text-align:center; font-size:0.68rem; color:var(--muted); margin-bottom:14px; }
+  h1{ font-size:1.02rem; font-weight:700; letter-spacing:0.02em; margin:0 0 2px; text-align:center; }
+  .tagline{ text-align:center; font-size:0.64rem; color:var(--muted); margin-bottom:10px; }
 
   .mode-card{ background:var(--panel); border:1px solid var(--grid-line); border-radius:6px; padding:14px; margin-bottom:12px; }
   .mode-card p{ font-size:0.72rem; color:var(--muted); line-height:1.55; margin:0 0 10px; }
@@ -52,18 +59,18 @@
   .mode-btn span{ font-size:0.68rem; color:var(--muted); line-height:1.5; }
   .mode-btn:active{ transform:translateY(1px); }
 
-  .hud{ display:grid; grid-template-columns:repeat(4,1fr); gap:6px; margin-bottom:10px; }
-  .hud div{ background:var(--panel); border:1px solid var(--grid-line); border-radius:4px; padding:5px 4px; text-align:center; font-size:0.58rem; color:var(--muted); }
-  .hud b{ display:block; font-size:0.78rem; color:var(--text); }
+  .hud{ display:grid; grid-template-columns:repeat(5,1fr); gap:4px; margin-bottom:4px; }
+  .hud div{ background:var(--panel); border:1px solid var(--grid-line); border-radius:4px; padding:2px 3px; text-align:center; font-size:0.5rem; color:var(--muted); }
+  .hud b{ display:block; font-size:0.66rem; color:var(--text); }
 
-  .map-wrap{ display:flex; justify-content:center; margin-bottom:10px; }
+  .map-wrap{ display:flex; justify-content:center; margin-bottom:6px; }
   .map-grid{
-    display:grid; grid-template-columns:repeat(12, 27px); grid-template-rows:repeat(8, 27px);
+    display:grid; grid-template-columns:repeat(12, 23px); grid-template-rows:repeat(8, 23px);
     gap:2px; background:var(--grid-line); padding:2px; border-radius:4px;
   }
   .tile{
-    width:27px; height:27px; display:flex; align-items:center; justify-content:center;
-    font-size:0.72rem; font-weight:700; background:var(--floor); color:var(--floor-text); border-radius:1px;
+    width:23px; height:23px; display:flex; align-items:center; justify-content:center;
+    font-size:0.62rem; font-weight:700; background:var(--floor); color:var(--floor-text); border-radius:1px;
     overflow:hidden;
   }
   .tile.cache{ background:var(--panel-alt); border:1px solid var(--accent); padding:1px; }
@@ -72,25 +79,44 @@
   .mosaic{ display:grid; grid-template-columns:repeat(5,1fr); grid-template-rows:repeat(5,1fr); width:100%; height:100%; gap:0.5px; }
   .mosaic div{ background:transparent; }
 
-  #enter-btn{ margin-bottom:10px; }
+  #enter-btn{ margin-bottom:6px; }
   .drop-buttons{ display:grid; grid-template-columns:1fr 1fr; gap:6px; }
   .drop-buttons .btn{ margin-top:0; }
 
   .dpad{
-    display:grid; grid-template-columns:repeat(3, 44px); grid-template-rows:repeat(3, 44px);
-    gap:6px; justify-content:center; margin-bottom:10px;
+    display:grid; grid-template-columns:repeat(3, 40px); grid-template-rows:repeat(3, 40px);
+    gap:5px; justify-content:center; margin-bottom:6px;
   }
   .dpad button{ background:var(--panel); border:1px solid var(--grid-line); border-radius:5px; color:var(--text); font-size:1rem; font-family:inherit; cursor:pointer; }
   .dpad button:active{ background:var(--panel-alt); }
   .dpad .empty{ background:transparent; border:none; }
 
-  .hint{ text-align:center; font-size:0.6rem; color:var(--muted); margin-top:4px; line-height:1.5; }
+  .hint{ text-align:center; font-size:0.56rem; color:var(--muted); margin-top:2px; line-height:1.4; }
 
-  .panel{ background:var(--panel); border:1px solid var(--grid-line); border-radius:6px; padding:12px; }
-  .panel h2{ font-size:0.85rem; margin:0 0 8px; }
-  .panel .btn.top-close{ margin-bottom:12px; }
+  .panel{ background:var(--panel); border:1px solid var(--grid-line); border-radius:6px; padding:10px; }
+  .panel h2{ font-size:0.82rem; margin:0 0 6px; }
+  .panel .btn.top-close{ margin-bottom:10px; }
 
-  .section-label{ font-size:0.6rem; color:var(--muted); margin:8px 0 4px; }
+  .section-label{ font-size:0.58rem; color:var(--muted); margin:6px 0 3px; }
+
+  .shop-toggle{
+    width:100%; text-align:left; background:var(--panel-alt); border:1px solid var(--grid-line);
+    border-radius:5px; padding:7px 10px; font-family:inherit; font-size:0.68rem; font-weight:600;
+    color:var(--text); cursor:pointer; margin-bottom:6px;
+  }
+  .shop-row{ display:flex; flex-direction:column; gap:6px; margin-bottom:8px; }
+  .shop-btn{
+    background:var(--panel-alt); border:1px solid var(--grid-line); border-radius:4px; padding:8px 10px;
+    font-family:inherit; font-size:0.66rem; font-weight:600; color:var(--text); cursor:pointer; text-align:left;
+  }
+  .shop-btn:disabled{ opacity:0.45; cursor:default; }
+  .shop-btn.owned{ background:var(--accent); color:#fff; opacity:0.85; }
+
+  .teleport-grid{ display:grid; grid-template-columns:repeat(5,1fr); gap:6px; margin-bottom:8px; }
+  .tp-swatch{
+    height:30px; border-radius:4px; border:none; cursor:pointer; color:#fff; font-size:0.6rem; font-weight:700;
+  }
+  .tp-swatch:active{ transform:translateY(1px); }
 
   .key-grid{
     display:grid; grid-template-columns:repeat(5, 1fr); gap:6px; margin-bottom:10px; min-height:40px;
@@ -106,6 +132,10 @@
   .key.selected{ border-color:var(--text); box-shadow:0 0 0 2px var(--accent); }
   .key.shake, .slot.shake, .cat-btn.shake{ animation:shake 0.3s ease; }
   @keyframes shake{ 0%,100%{transform:translateX(0);} 25%{transform:translateX(-4px);} 75%{transform:translateX(4px);} }
+  .slot.pop{ animation:pop 0.35s ease; }
+  @keyframes pop{ 0%{ transform:scale(1); } 45%{ transform:scale(1.35); } 100%{ transform:scale(1); } }
+  .board-group.justdone{ animation:flashdone 0.6s ease; }
+  @keyframes flashdone{ 0%{ box-shadow:0 0 0 0 rgba(14,124,102,0.5);} 60%{ box-shadow:0 0 0 8px rgba(14,124,102,0.25);} 100%{ box-shadow:0 0 0 0 rgba(14,124,102,0);} }
 
   .toast{ font-size:0.65rem; color:var(--danger); text-align:center; min-height:14px; margin:-2px 0 8px; }
 
@@ -137,7 +167,7 @@
   .cat-btn:disabled{ opacity:0.4; cursor:default; }
   .cat-btn:active:not(:disabled){ background:var(--accent); color:#fff; }
 
-  .board-group{ margin-top:14px; margin-bottom:14px; padding-bottom:10px; border-bottom:1px solid var(--grid-line); }
+  .board-group{ margin-top:14px; margin-bottom:14px; padding-bottom:10px; border-bottom:1px solid var(--grid-line); border-radius:4px; }
   .board-group:last-child{ border-bottom:none; }
   .board-group.locked{ opacity:0.55; }
   .group-head{ font-size:0.66rem; color:var(--muted); margin-bottom:6px; display:flex; justify-content:space-between; }
@@ -159,17 +189,36 @@
   .card p{ font-size:0.72rem; color:var(--muted); margin:0 0 16px; line-height:1.6; }
 
   .hidden{ display:none !important; }
+
+  .ach-toast{
+    position:fixed; top:14px; left:50%; transform:translateX(-50%) translateY(-20px);
+    background:var(--accent); color:#fff; padding:10px 16px; border-radius:6px;
+    font-size:0.72rem; font-weight:600; box-shadow:0 4px 14px rgba(0,0,0,0.3);
+    opacity:0; transition:opacity 0.25s ease, transform 0.25s ease; z-index:20; max-width:88%; text-align:center;
+  }
+  .ach-toast.show{ opacity:1; transform:translateX(-50%) translateY(0); }
+
+  .ach-cat-label{ font-size:0.68rem; font-weight:700; color:var(--accent); margin:12px 0 4px; }
+  .ach-cat-label:first-child{ margin-top:0; }
+  .ach-row{ display:flex; gap:8px; align-items:flex-start; padding:6px 0; border-bottom:1px solid var(--grid-line); }
+  .ach-row:last-child{ border-bottom:none; }
+  .ach-row.locked{ opacity:0.5; }
+  .ach-icon{ font-size:1rem; line-height:1.4; }
+  .ach-text b{ display:block; font-size:0.72rem; }
+  .ach-text span{ font-size:0.6rem; color:var(--muted); }
+  .ach-link{ background:none; border:none; color:var(--accent); font-family:inherit; font-size:0.66rem; text-decoration:underline; cursor:pointer; padding:6px 0; }
 </style>
 </head>
 <body>
 <div class="app">
   <h1>&#9000;&#65039; Clavier Perdu</h1>
-  <div class="tagline">Chaque étagère cache un vrai clavier complet à reconstituer. Ta partie se sauvegarde automatiquement sur cet appareil.</div>
 
   <div id="screen-mode">
+    <div class="tagline">Chaque étagère cache un vrai clavier complet à reconstituer. Ta partie se sauvegarde automatiquement sur cet appareil.</div>
     <div class="mode-card">
       <button class="btn hidden" id="resume-btn" style="margin-bottom:10px;">Reprendre la partie sauvegardée</button>
-      <p>10 étagères disposées sur le pourtour de la salle, une par couleur. Les caches de touches tombées (25 max chacune) sont regroupées en damier au centre, avec de quoi circuler tout autour. Déplace-toi puis appuie sur "Entrer" pour ouvrir ce qui se trouve sous tes pieds. Chaque touche placée rapporte 1$ : sers-t'en pour agrandir ton sac (départ à 2 places, +1 à chaque achat, coût qui augmente de 10$ à chaque fois). À chaque étagère, ta touche la plus ancienne de cette couleur est active : appuie sur la grande catégorie qui lui correspond (Chiffres, Symboles, MAJUSCULES ou minuscules) pour la ranger — les lettres se classent toutes seules en ordre alphabétique.</p>
+      <button class="btn secondary" id="ach-open-btn-home" style="margin-bottom:10px;">🏆 Succès</button>
+      <p>10 étagères sur le pourtour, une par couleur. Les caches (25 touches max chacune) sont en damier au centre, avec de quoi circuler tout autour. Chaque touche placée rapporte 1$ : agrandis ton sac, ou débloque l'Aimant (ramassage automatique) et le Téléporteur (voyage instantané). Une fois les 10 claviers réparés, enchaîne une nouvelle manche sans perdre tes améliorations.</p>
       <button class="mode-btn" id="btn-dependance">
         <b>Mode Dépendance</b>
         <span>Le clavier se répare en 2 blocs : Bloc A (chiffres &amp; symboles), Bloc B (lettres). B reste verrouillé tant que A n'est pas à moitié rempli.</span>
@@ -182,32 +231,46 @@
   </div>
 
   <div id="screen-game" class="hidden">
-    <div class="hud" style="grid-template-columns:repeat(5,1fr);">
+    <div class="hud">
       <div>MODE<b id="hud-mode">-</b></div>
       <div>TOUCHES<b id="hud-placed">0/720</b></div>
       <div>SAC<b id="hud-tray">0/2</b></div>
       <div>$<b id="hud-money">0</b></div>
       <div>ERREURS<b id="hud-mistakes">0</b></div>
     </div>
-    <div id="save-status" style="text-align:center;font-size:0.55rem;color:var(--danger);margin:-4px 0 8px;"></div>
+    <div id="save-status" style="text-align:center;font-size:0.55rem;color:var(--danger);margin:-2px 0 4px;"></div>
 
     <div id="view-map">
       <div class="map-wrap"><div class="map-grid" id="map-grid"></div></div>
       <button class="btn" id="enter-btn">Rien à faire ici</button>
-      <div class="section-label">Boutique</div>
-      <button class="btn secondary" id="shop-upgrade-btn">Améliorer la capacité du sac (+1) — 10$</button>
+
       <div class="dpad">
         <div class="empty"></div><button id="btn-up">&#9650;</button><div class="empty"></div>
         <button id="btn-left">&#9664;</button><div class="empty"></div><button id="btn-right">&#9654;</button>
         <div class="empty"></div><button id="btn-down">&#9660;</button><div class="empty"></div>
       </div>
-      <div class="section-label">Ton sac</div>
       <div class="tray-strip" id="map-tray"></div>
       <div class="drop-buttons">
         <button class="btn secondary" id="map-drop-btn">Déposer sélection</button>
         <button class="btn secondary" id="map-drop-all-btn">Tout déposer</button>
       </div>
-      <div class="hint" id="map-hint">@ = toi &middot; mosaïque colorée = cache ou tas déposé (25 max) &middot; case colorée sur le pourtour = étagère &middot; déplace-toi puis appuie sur Entrer</div>
+
+      <button class="shop-toggle" id="shop-toggle-btn">🛒 Boutique ▾</button>
+      <div id="shop-panel" class="hidden">
+        <div class="shop-row">
+          <button class="shop-btn" id="shop-upgrade-btn">Améliorer la capacité du sac (+1) — 10$</button>
+          <button class="shop-btn" id="shop-magnet-btn">Acheter l'Aimant (ramassage auto) — 150$</button>
+          <button class="shop-btn" id="shop-teleport-btn">Acheter le Téléporteur (voyage rapide) — 300$</button>
+        </div>
+        <div id="teleport-box" class="hidden">
+          <div class="section-label">Téléportation</div>
+          <div class="teleport-grid" id="teleport-grid"></div>
+          <button class="btn secondary" id="tp-nearest-btn" style="margin-bottom:10px;">Téléporter vers la cache la plus proche</button>
+        </div>
+      </div>
+
+      <button class="ach-link" id="ach-open-btn-map">🏆 Succès</button>
+      <div class="hint" id="map-hint">@ toi &middot; mosaïque = cache/tas &middot; case colorée = étagère</div>
     </div>
 
     <div id="view-cache" class="panel hidden">
@@ -242,13 +305,24 @@
   <div class="card">
     <h2>Tous les claviers sont réparés !</h2>
     <p id="summary"></p>
-    <button class="btn" id="restart">Nouvel atelier</button>
+    <button class="btn" id="next-round-btn">Manche suivante (garder mes améliorations)</button>
+    <button class="btn secondary" id="restart">Nouvelle partie (tout réinitialiser)</button>
   </div>
 </div>
 
+<div class="overlay" id="ach-overlay">
+  <div class="card" style="max-width:340px; text-align:left; max-height:80vh; overflow-y:auto;">
+    <h2 style="text-align:center;">Succès</h2>
+    <div id="ach-list"></div>
+    <button class="btn" id="ach-close-btn" style="margin-top:12px;">Fermer</button>
+  </div>
+</div>
+
+<div class="ach-toast hidden" id="ach-toast"></div>
+
 <script>
 (function(){
-  const SAVE_KEY='clavierPerduSaveV4';
+  const SAVE_KEY='clavierPerduSaveV5';
   const COLORS=[
     {id:'rouge', label:'Rouge', hex:'#c0392b'},
     {id:'orange', label:'Orange', hex:'#c8641b'},
@@ -274,25 +348,88 @@
   const COLS=12, ROWS=8;
   const BASE_CAP=2, MAX_CAP=40;
   const PILE_MAX=25;
+  const MAGNET_COST=150, TELEPORT_COST=300;
 
   function colorOf(id){ return COLORS.find(c=>c.id===id); }
   function shuffle(arr){ for(let i=arr.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [arr[i],arr[j]]=[arr[j],arr[i]]; } return arr; }
+
+  const ACHIEVEMENTS=[
+    {id:'premier_pas', cat:'Progression', label:'Premier pas', desc:'Compléter ton tout premier clavier'},
+    {id:'collection_complete', cat:'Progression', label:'Collection complète', desc:'Terminer les 10 claviers d\u2019une manche'},
+    {id:'marathonien', cat:'Progression', label:'Marathonien', desc:'Terminer 5 manches au total'},
+    {id:'sans_faute', cat:'Maîtrise', label:'Sans faute', desc:'Terminer une manche sans aucune erreur'},
+    {id:'minimaliste', cat:'Maîtrise', label:'Minimaliste', desc:'Terminer une manche sans Aimant ni Téléporteur'},
+    {id:'richissime', cat:'Économie', label:'Richissime', desc:'Avoir 1000$ ou plus'},
+    {id:'sac_xxl', cat:'Économie', label:'Sac XXL', desc:'Atteindre la capacité de sac maximale'},
+    {id:'tout_automatise', cat:'Économie', label:'Tout automatisé', desc:'Acheter l\u2019Aimant et le Téléporteur'}
+  ];
+  const ACH_KEY='clavierPerduAchievementsV1';
+
+  function loadAchievements(){
+    try{
+      const raw=localStorage.getItem(ACH_KEY);
+      if(!raw) return {unlocked:{}, totalRounds:0};
+      const parsed=JSON.parse(raw);
+      if(!parsed.unlocked) parsed.unlocked={};
+      if(typeof parsed.totalRounds!=='number') parsed.totalRounds=0;
+      return parsed;
+    }catch(e){ return {unlocked:{}, totalRounds:0}; }
+  }
+  let achievements = loadAchievements();
+  function saveAchievements(){ try{ localStorage.setItem(ACH_KEY, JSON.stringify(achievements)); }catch(e){} }
+
+  function showAchievementToast(id){
+    const ach=ACHIEVEMENTS.find(a=>a.id===id);
+    if(!ach) return;
+    const el=document.getElementById('ach-toast');
+    el.textContent = '\uD83C\uDFC6 Succès débloqué : ' + ach.label;
+    el.classList.remove('hidden');
+    requestAnimationFrame(()=>el.classList.add('show'));
+    clearTimeout(el._timer);
+    el._timer=setTimeout(()=>{ el.classList.remove('show'); }, 2600);
+  }
+
+  function unlockAchievement(id){
+    if(achievements.unlocked[id]) return;
+    achievements.unlocked[id]=true;
+    saveAchievements();
+    showAchievementToast(id);
+  }
+
+  function renderAchievements(){
+    const list=document.getElementById('ach-list');
+    list.innerHTML='';
+    let currentCat=null;
+    ACHIEVEMENTS.forEach(ach=>{
+      if(ach.cat!==currentCat){
+        currentCat=ach.cat;
+        const catLabel=document.createElement('div');
+        catLabel.className='ach-cat-label';
+        catLabel.textContent=currentCat;
+        list.appendChild(catLabel);
+      }
+      const unlocked=!!achievements.unlocked[ach.id];
+      const row=document.createElement('div');
+      row.className='ach-row'+(unlocked?'':' locked');
+      const icon=document.createElement('div'); icon.className='ach-icon'; icon.textContent = unlocked ? '\uD83C\uDFC6' : '\uD83D\uDD12';
+      const text=document.createElement('div'); text.className='ach-text';
+      text.innerHTML = '<b>'+ach.label+'</b><span>'+ach.desc+'</span>';
+      row.appendChild(icon); row.appendChild(text);
+      list.appendChild(row);
+    });
+  }
+  function openAchievements(){ renderAchievements(); document.getElementById('ach-overlay').classList.add('show'); }
+  function closeAchievements(){ document.getElementById('ach-overlay').classList.remove('show'); }
 
   let state = null;
 
   function saveGame(){
     if(!state) return false;
-    try{
-      localStorage.setItem(SAVE_KEY, JSON.stringify(state));
-      state._lastSaveOk = true;
-      return true;
-    }catch(e){
-      state._lastSaveOk = false;
-      return false;
-    }
+    try{ localStorage.setItem(SAVE_KEY, JSON.stringify(state)); state._lastSaveOk=true; return true; }
+    catch(e){ state._lastSaveOk=false; return false; }
   }
   function loadSavedGame(){
-    try{ const raw = localStorage.getItem(SAVE_KEY); if(!raw) return null; return JSON.parse(raw); }catch(e){ return null; }
+    try{ const raw=localStorage.getItem(SAVE_KEY); if(!raw) return null; return JSON.parse(raw); }catch(e){ return null; }
   }
   function clearSave(){ try{ localStorage.removeItem(SAVE_KEY); }catch(e){} }
 
@@ -367,15 +504,22 @@
   function getTrayCap(){
     return Math.min(BASE_CAP + state.trayUpgrades, MAX_CAP);
   }
-  function upgradeCost(){
-    return (state.trayUpgrades+1)*10;
-  }
+  function upgradeCost(){ return (state.trayUpgrades+1)*10; }
   function buyTrayUpgrade(){
     if(getTrayCap()>=MAX_CAP) return;
     const cost=upgradeCost();
     if(state.money<cost) return;
-    state.money-=cost;
-    state.trayUpgrades++;
+    state.money-=cost; state.trayUpgrades++;
+    renderAll();
+  }
+  function buyMagnet(){
+    if(state.hasMagnet || state.money<MAGNET_COST) return;
+    state.money-=MAGNET_COST; state.hasMagnet=true;
+    renderAll();
+  }
+  function buyTeleport(){
+    if(state.hasTeleport || state.money<TELEPORT_COST) return;
+    state.money-=TELEPORT_COST; state.hasTeleport=true;
     renderAll();
   }
 
@@ -399,7 +543,6 @@
     const shelfCoords=[];
     for(let i=0;i<10;i++) shelfCoords.push(perim[Math.floor(i*step)]);
 
-    const perimSet = new Set(perim.map(p=>p.x+','+p.y));
     const evenCells=[], oddCells=[];
     for(let y=1;y<ROWS-1;y++){
       for(let x=1;x<COLS-1;x++){
@@ -429,20 +572,41 @@
     return {grid, start};
   }
 
-  function startGame(mode){
+  function freshRoundState(mode, keep){
     const pool = buildPool();
     const {grid, start} = generateMap(pool);
-    state = {
+    return {
       mode, grid, player:{x:start.x,y:start.y},
       tray:[], selectedUid:null,
       keyboards: buildKeyboards(mode),
       groundPiles: {},
-      totalPlaced:0, score:0, mistakes:0, money:0, trayUpgrades:0,
+      totalPlaced:0, score:0, mistakes:0,
+      money: keep ? keep.money : 0,
+      trayUpgrades: keep ? keep.trayUpgrades : 0,
+      hasMagnet: keep ? keep.hasMagnet : false,
+      hasTeleport: keep ? keep.hasTeleport : false,
+      round: keep ? keep.round+1 : 1,
       panel:'map', activeShelf:null
     };
+  }
+
+  function updateHudMode(){
+    document.getElementById('hud-mode').textContent = (state.mode==='dependance' ? 'Dépend.' : 'Sous-cla') + ' R' + (state.round||1);
+  }
+
+  function startGame(mode){
+    state = freshRoundState(mode, null);
     document.getElementById('screen-mode').classList.add('hidden');
     document.getElementById('screen-game').classList.remove('hidden');
-    document.getElementById('hud-mode').textContent = mode==='dependance' ? 'Dépend.' : 'Sous-cla';
+    updateHudMode();
+    renderAll();
+  }
+
+  function nextRound(){
+    const keep = { money:state.money, trayUpgrades:state.trayUpgrades, hasMagnet:state.hasMagnet, hasTeleport:state.hasTeleport, round:state.round||1 };
+    state = freshRoundState(state.mode, keep);
+    document.getElementById('overlay').classList.remove('show');
+    updateHudMode();
     renderAll();
   }
 
@@ -451,9 +615,14 @@
     if(!saved) return;
     try{
       state = saved;
+      if(typeof state.money!=='number') state.money=0;
+      if(typeof state.trayUpgrades!=='number') state.trayUpgrades=0;
+      if(typeof state.hasMagnet!=='boolean') state.hasMagnet=false;
+      if(typeof state.hasTeleport!=='boolean') state.hasTeleport=false;
+      if(typeof state.round!=='number') state.round=1;
       document.getElementById('screen-mode').classList.add('hidden');
       document.getElementById('screen-game').classList.remove('hidden');
-      document.getElementById('hud-mode').textContent = state.mode==='dependance' ? 'Dépend.' : 'Sous-cla';
+      updateHudMode();
       renderAll();
     }catch(e){
       clearSave();
@@ -479,11 +648,64 @@
     return null;
   }
 
+  function currentPileInfo(){
+    const cell = state.grid[state.player.y][state.player.x];
+    const coordKey = state.player.x+','+state.player.y;
+    if(cell.type==='cache') return {source:'cache', arr:cell.keys, cell};
+    return {source:'ground', arr:state.groundPiles[coordKey], coordKey};
+  }
+
+  function autoCollectIfMagnet(){
+    if(!state.hasMagnet) return;
+    const info = currentPileInfo();
+    if(!info.arr) return;
+    info.arr.forEach(k=>{
+      if(!k.taken && state.tray.length<getTrayCap()){
+        k.taken=true;
+        state.tray.push(k);
+      }
+    });
+  }
+
   function enterCurrentTile(){
     const info = currentEnterable();
     if(!info) return;
-    if(info.type==='cache') state.panel='cache';
+    if(info.type==='cache'){ state.panel='cache'; autoCollectIfMagnet(); }
     else if(info.type==='shelf'){ state.panel='shelf'; state.activeShelf=info.color; }
+    renderAll();
+  }
+
+  function findShelfCoord(colorId){
+    for(let y=0;y<ROWS;y++) for(let x=0;x<COLS;x++){
+      const c=state.grid[y][x];
+      if(c.type==='shelf' && c.color===colorId) return {x,y};
+    }
+    return null;
+  }
+  function teleportToShelf(colorId){
+    const coord=findShelfCoord(colorId);
+    if(!coord) return;
+    state.player.x=coord.x; state.player.y=coord.y;
+    state.panel='shelf'; state.activeShelf=colorId;
+    renderAll();
+  }
+  function findNearestCache(){
+    let best=null, bestDist=Infinity;
+    for(let y=0;y<ROWS;y++) for(let x=0;x<COLS;x++){
+      const c=state.grid[y][x];
+      if(c.type==='cache' && c.keys && c.keys.some(k=>!k.taken)){
+        const d=Math.abs(x-state.player.x)+Math.abs(y-state.player.y);
+        if(d<bestDist){ bestDist=d; best={x,y}; }
+      }
+    }
+    return best;
+  }
+  function teleportToNearestCache(){
+    const coord=findNearestCache();
+    if(!coord) return;
+    state.player.x=coord.x; state.player.y=coord.y;
+    state.panel='cache';
+    autoCollectIfMagnet();
     renderAll();
   }
 
@@ -501,9 +723,12 @@
   function renderHud(){
     document.getElementById('hud-placed').textContent = state.totalPlaced+'/720';
     document.getElementById('hud-tray').textContent = state.tray.length+'/'+getTrayCap();
-    document.getElementById('hud-money').textContent = state.money+'$';
+    document.getElementById('hud-money').textContent = state.money;
     document.getElementById('hud-mistakes').textContent = state.mistakes;
     document.getElementById('save-status').textContent = state._lastSaveOk===false ? '\u26A0\uFE0F Sauvegarde impossible sur cet appareil/navigateur' : '';
+    if(state.money>=1000) unlockAchievement('richissime');
+    if(getTrayCap()>=MAX_CAP) unlockAchievement('sac_xxl');
+    if(state.hasMagnet && state.hasTeleport) unlockAchievement('tout_automatise');
   }
 
   function renderTrayInto(containerId, onSelect){
@@ -523,13 +748,10 @@
   }
 
   function updateDropButton(btnId){
-    const btn=document.getElementById(btnId);
-    const canDrop = !!state.selectedUid;
-    btn.disabled = !canDrop;
+    document.getElementById(btnId).disabled = !state.selectedUid;
   }
   function updateDropAllButton(btnId){
-    const btn=document.getElementById(btnId);
-    btn.disabled = state.tray.length===0;
+    document.getElementById(btnId).disabled = state.tray.length===0;
   }
 
   function dropSelected(){
@@ -567,6 +789,59 @@
     renderAll();
   }
 
+  function renderShopButtons(){
+    const capBtn=document.getElementById('shop-upgrade-btn');
+    if(getTrayCap()>=MAX_CAP){
+      capBtn.textContent='Capacité maximale atteinte';
+      capBtn.disabled=true;
+    } else {
+      const cost=upgradeCost();
+      capBtn.textContent='Améliorer la capacité du sac (+1) — '+cost+'$';
+      capBtn.disabled = state.money<cost;
+    }
+
+    const magnetBtn=document.getElementById('shop-magnet-btn');
+    if(state.hasMagnet){
+      magnetBtn.textContent='Aimant acquis \u2713 (ramassage automatique actif)';
+      magnetBtn.disabled=true; magnetBtn.classList.add('owned');
+    } else {
+      magnetBtn.textContent="Acheter l'Aimant (ramassage auto) — "+MAGNET_COST+'$';
+      magnetBtn.disabled = state.money<MAGNET_COST; magnetBtn.classList.remove('owned');
+    }
+
+    const tpBtn=document.getElementById('shop-teleport-btn');
+    if(state.hasTeleport){
+      tpBtn.textContent='Téléporteur acquis \u2713';
+      tpBtn.disabled=true; tpBtn.classList.add('owned');
+    } else {
+      tpBtn.textContent='Acheter le Téléporteur (voyage rapide) — '+TELEPORT_COST+'$';
+      tpBtn.disabled = state.money<TELEPORT_COST; tpBtn.classList.remove('owned');
+    }
+
+    const tpBox=document.getElementById('teleport-box');
+    tpBox.classList.toggle('hidden', !state.hasTeleport);
+    if(state.hasTeleport){
+      const grid=document.getElementById('teleport-grid');
+      grid.innerHTML='';
+      COLORS.forEach(c=>{
+        const b=document.createElement('button');
+        b.className='tp-swatch';
+        b.style.background=c.hex;
+        b.textContent = shelfDone(c.id) ? '\u2713' : c.label.slice(0,3);
+        b.addEventListener('click', ()=>teleportToShelf(c.id));
+        grid.appendChild(b);
+      });
+      document.getElementById('tp-nearest-btn').onclick = teleportToNearestCache;
+    }
+  }
+
+  function toggleShop(){
+    const panel=document.getElementById('shop-panel');
+    const btn=document.getElementById('shop-toggle-btn');
+    panel.classList.toggle('hidden');
+    btn.textContent = panel.classList.contains('hidden') ? '🛒 Boutique ▾' : '🛒 Boutique ▴';
+  }
+
   function renderMapPanel(){
     renderMap();
     renderTrayInto('map-tray', renderMapPanel);
@@ -576,15 +851,7 @@
     const btn = document.getElementById('enter-btn');
     btn.disabled = !info;
     btn.textContent = info ? info.label : 'Rien à faire ici';
-    const shopBtn = document.getElementById('shop-upgrade-btn');
-    if(getTrayCap()>=MAX_CAP){
-      shopBtn.textContent = 'Capacité maximale atteinte';
-      shopBtn.disabled = true;
-    } else {
-      const cost = upgradeCost();
-      shopBtn.textContent = 'Améliorer la capacité du sac (+1) — ' + cost + '$';
-      shopBtn.disabled = state.money < cost;
-    }
+    renderShopButtons();
   }
 
   function buildMosaic(container, keysArr){
@@ -630,13 +897,6 @@
     }
   }
 
-  function currentPileInfo(){
-    const cell = state.grid[state.player.y][state.player.x];
-    const coordKey = state.player.x+','+state.player.y;
-    if(cell.type==='cache') return {source:'cache', arr:cell.keys, cell};
-    return {source:'ground', arr:state.groundPiles[coordKey], coordKey};
-  }
-
   function renderCache(){
     const info = currentPileInfo();
     const arr = info.arr || [];
@@ -647,9 +907,8 @@
     document.getElementById('cache-toast').textContent='';
     arr.forEach(k=>{
       const d=document.createElement('div');
-      if(k.taken){
-        d.className='key-empty';
-      } else {
+      if(k.taken){ d.className='key-empty'; }
+      else {
         d.className='key';
         d.style.background=colorOf(k.color).hex;
         d.textContent=k.char;
@@ -746,10 +1005,12 @@
     state.totalPlaced++;
     state.score+=10;
     state.money+=1;
-    renderShelf(); renderHud(); checkWin(); saveGame();
+    if(shelfDone(colorId)) unlockAchievement('premier_pas');
+    renderShelf(colorId, zoneName);
+    renderHud(); checkWin(); saveGame();
   }
 
-  function renderFlatZoneDisplay(container, colorId, zoneName){
+  function renderFlatZoneDisplay(container, colorId, zoneName, justFilledChar){
     const zone = getZone(colorId, zoneName);
     const locked = getLocked(colorId, zoneName);
     const have = countFlat(zone);
@@ -763,6 +1024,7 @@
       let cls='slot';
       if(slot.filled){ cls+=' filled'; s.style.background=colorOf(colorId).hex; }
       if(locked) cls+=' locked';
+      if(justFilledChar && slot.filled && slot.char===justFilledChar) cls+=' pop';
       s.className=cls;
       s.textContent = slot.filled ? slot.char : '';
       s.style.opacity = slot.filled ? '1' : (locked ? '0.35' : '0.55');
@@ -771,7 +1033,7 @@
     container.appendChild(row);
   }
 
-  function renderLetterZoneDisplay(container, colorId, zoneName){
+  function renderLetterZoneDisplay(container, colorId, zoneName, justFilledChar){
     const zoneObj = getZone(colorId, zoneName);
     const locked = getLocked(colorId, zoneName);
     const sorted = zoneObj.collected.slice().sort();
@@ -789,6 +1051,7 @@
         let cls='slot';
         if(ch){ cls+=' filled'; s.style.background=colorOf(colorId).hex; }
         if(locked) cls+=' locked';
+        if(justFilledChar && ch===justFilledChar) cls+=' pop';
         s.className=cls;
         s.textContent = ch || '';
         s.style.opacity = ch ? '1' : (locked ? '0.35' : '0.55');
@@ -798,7 +1061,7 @@
     });
   }
 
-  function renderShelf(){
+  function renderShelf(justFilledColor, justFilledZone){
     const colorId = state.activeShelf;
     const c = colorOf(colorId);
     document.getElementById('shelf-title').innerHTML = '&Eacute;tag&egrave;re ' + c.label;
@@ -815,6 +1078,7 @@
 
     const boards = document.getElementById('shelf-boards');
     boards.innerHTML='';
+    const justChar = (justFilledColor===colorId) ? true : false;
 
     if(state.mode==='dependance'){
       const kb=state.keyboards[colorId];
@@ -826,6 +1090,7 @@
       groupA.appendChild(headA);
       const zA=document.createElement('div'); zA.className='zone'; renderFlatZoneDisplay(zA,colorId,'digits'); groupA.appendChild(zA);
       const zA2=document.createElement('div'); zA2.className='zone'; renderFlatZoneDisplay(zA2,colorId,'specials'); groupA.appendChild(zA2);
+      if(haveA>=20 && justChar) groupA.classList.add('justdone');
       boards.appendChild(groupA);
 
       const groupB=document.createElement('div');
@@ -836,6 +1101,7 @@
       groupB.appendChild(headB);
       const zB=document.createElement('div'); zB.className='zone'; renderLetterZoneDisplay(zB,colorId,'upper'); groupB.appendChild(zB);
       const zB2=document.createElement('div'); zB2.className='zone'; renderLetterZoneDisplay(zB2,colorId,'lower'); groupB.appendChild(zB2);
+      if(haveB>=52 && justChar) groupB.classList.add('justdone');
       boards.appendChild(groupB);
     } else {
       const group=document.createElement('div'); group.className='board-group';
@@ -843,14 +1109,21 @@
       const z2=document.createElement('div'); z2.className='zone'; renderFlatZoneDisplay(z2,colorId,'specials'); group.appendChild(z2);
       const z3=document.createElement('div'); z3.className='zone'; renderLetterZoneDisplay(z3,colorId,'upper'); group.appendChild(z3);
       const z4=document.createElement('div'); z4.className='zone'; renderLetterZoneDisplay(z4,colorId,'lower'); group.appendChild(z4);
+      if(shelfDone(colorId) && justChar) group.classList.add('justdone');
       boards.appendChild(group);
     }
   }
 
   function checkWin(){
     if(state.totalPlaced>=720){
-      document.getElementById('summary').textContent = 'Score : '+state.score+' &middot; Erreurs : '+state.mistakes;
+      document.getElementById('summary').textContent = 'Manche '+(state.round||1)+' terminée. Score : '+state.score+' &middot; Erreurs : '+state.mistakes+' &middot; Argent : '+state.money+'$';
       document.getElementById('overlay').classList.add('show');
+      unlockAchievement('collection_complete');
+      achievements.totalRounds = (achievements.totalRounds||0) + 1;
+      saveAchievements();
+      if(achievements.totalRounds>=5) unlockAchievement('marathonien');
+      if(state.mistakes===0) unlockAchievement('sans_faute');
+      if(!state.hasMagnet && !state.hasTeleport) unlockAchievement('minimaliste');
       clearSave();
     }
   }
@@ -861,11 +1134,15 @@
   document.getElementById('btn-dependance').addEventListener('click', ()=>startGame('dependance'));
   document.getElementById('btn-souscla').addEventListener('click', ()=>startGame('souscla'));
   document.getElementById('resume-btn').addEventListener('click', resumeGame);
+  document.getElementById('ach-open-btn-home').addEventListener('click', openAchievements);
+  document.getElementById('ach-open-btn-map').addEventListener('click', openAchievements);
+  document.getElementById('ach-close-btn').addEventListener('click', closeAchievements);
   document.getElementById('btn-up').addEventListener('click', ()=>move(0,-1));
   document.getElementById('btn-down').addEventListener('click', ()=>move(0,1));
   document.getElementById('btn-left').addEventListener('click', ()=>move(-1,0));
   document.getElementById('btn-right').addEventListener('click', ()=>move(1,0));
   document.getElementById('enter-btn').addEventListener('click', enterCurrentTile);
+  document.getElementById('shop-toggle-btn').addEventListener('click', toggleShop);
   document.getElementById('cache-close').addEventListener('click', ()=>{ state.panel='map'; renderAll(); });
   document.getElementById('shelf-close').addEventListener('click', ()=>{ state.panel='map'; renderAll(); });
   document.getElementById('map-drop-btn').addEventListener('click', dropSelected);
@@ -873,6 +1150,9 @@
   document.getElementById('shelf-drop-btn').addEventListener('click', dropSelected);
   document.getElementById('shelf-drop-all-btn').addEventListener('click', dropAll);
   document.getElementById('shop-upgrade-btn').addEventListener('click', buyTrayUpgrade);
+  document.getElementById('shop-magnet-btn').addEventListener('click', buyMagnet);
+  document.getElementById('shop-teleport-btn').addEventListener('click', buyTeleport);
+  document.getElementById('next-round-btn').addEventListener('click', nextRound);
   document.getElementById('restart').addEventListener('click', ()=>{
     document.getElementById('overlay').classList.remove('show');
     document.getElementById('screen-game').classList.add('hidden');
@@ -886,7 +1166,6 @@
     if(e.key==='ArrowRight') move(1,0);
     if(e.key==='Enter') enterCurrentTile();
   });
-})();
-</script>
+})();</script>
 </body>
 </html>
