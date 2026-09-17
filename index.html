@@ -242,19 +242,6 @@
 
     <div id="view-map">
       <div class="map-wrap"><div class="map-grid" id="map-grid"></div></div>
-      <button class="btn" id="enter-btn">Rien à faire ici</button>
-
-      <div class="dpad">
-        <div class="empty"></div><button id="btn-up">&#9650;</button><div class="empty"></div>
-        <button id="btn-left">&#9664;</button><div class="empty"></div><button id="btn-right">&#9654;</button>
-        <div class="empty"></div><button id="btn-down">&#9660;</button><div class="empty"></div>
-      </div>
-      <div class="tray-strip" id="map-tray"></div>
-      <div class="drop-buttons">
-        <button class="btn secondary" id="map-drop-btn">Déposer sélection</button>
-        <button class="btn secondary" id="map-drop-all-btn">Tout déposer</button>
-      </div>
-      <div class="toast" id="map-drop-toast"></div>
 
       <button class="shop-toggle" id="shop-toggle-btn">🛒 Boutique ▾</button>
       <div id="shop-panel" class="hidden">
@@ -271,6 +258,21 @@
       </div>
 
       <button class="ach-link" id="ach-open-btn-map">🏆 Succès</button>
+
+      <div class="tray-strip" id="map-tray"></div>
+      <div class="drop-buttons">
+        <button class="btn secondary" id="map-drop-btn">Déposer sélection</button>
+        <button class="btn secondary" id="map-drop-all-btn">Tout déposer</button>
+      </div>
+      <div class="toast" id="map-drop-toast"></div>
+
+      <button class="btn" id="enter-btn">Rien à faire ici</button>
+      <div class="dpad">
+        <div class="empty"></div><button id="btn-up">&#9650;</button><div class="empty"></div>
+        <button id="btn-left">&#9664;</button><div class="empty"></div><button id="btn-right">&#9654;</button>
+        <div class="empty"></div><button id="btn-down">&#9660;</button><div class="empty"></div>
+      </div>
+
       <div class="hint" id="map-hint">@ toi &middot; mosaïque = cache/tas &middot; case colorée = étagère</div>
     </div>
 
@@ -887,11 +889,12 @@
   }
 
   function buildMosaic(container, keysArr){
+    const untaken = keysArr.filter(k=>!k.taken);
     const mosaic=document.createElement('div');
     mosaic.className='mosaic';
     for(let i=0;i<25;i++){
       const cellDiv=document.createElement('div');
-      if(keysArr[i] && !keysArr[i].taken) cellDiv.style.background = colorOf(keysArr[i].color).hex;
+      if(untaken[i]) cellDiv.style.background = colorOf(untaken[i].color).hex;
       mosaic.appendChild(cellDiv);
     }
     container.appendChild(mosaic);
