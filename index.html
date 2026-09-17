@@ -130,6 +130,7 @@
   }
   .key:active{ transform:scale(0.92); }
   .key.selected{ border-color:var(--text); box-shadow:0 0 0 2px var(--accent); }
+  .key.dropped{ box-shadow:0 0 0 2px var(--danger); }
   .key.shake, .slot.shake, .cat-btn.shake{ animation:shake 0.3s ease; }
   @keyframes shake{ 0%,100%{transform:translateX(0);} 25%{transform:translateX(-4px);} 75%{transform:translateX(4px);} }
   .slot.pop{ animation:pop 0.35s ease; }
@@ -261,7 +262,7 @@
 
       <div class="tray-strip" id="map-tray"></div>
       <div class="drop-buttons">
-        <button class="btn secondary" id="map-drop-btn">Déposer sélection</button>
+        <button class="btn secondary" id="map-drop-btn">Déposer 1 touche</button>
         <button class="btn secondary" id="map-drop-all-btn">Tout déposer</button>
       </div>
       <div class="toast" id="map-drop-toast"></div>
@@ -279,6 +280,7 @@
     <div id="view-cache" class="panel hidden">
       <button class="btn secondary top-close" id="cache-close">Retour à la carte</button>
       <h2 id="cache-title">Cache</h2>
+      <div class="section-label" id="cache-subtitle"></div>
       <div class="key-grid" id="cache-grid"></div>
       <div class="toast" id="cache-toast"></div>
     </div>
@@ -286,6 +288,8 @@
     <div id="view-shelf" class="panel hidden">
       <button class="btn secondary top-close" id="shelf-close">Retour à la carte</button>
       <h2 id="shelf-title">Étagère</h2>
+
+      <div id="shelf-ground"></div>
 
       <div class="active-section">
         <div id="active-box"></div>
@@ -295,11 +299,10 @@
       <div class="section-label">Ton sac (pour déposer une touche ailleurs)</div>
       <div class="tray-strip" id="shelf-tray"></div>
       <div class="drop-buttons">
-        <button class="btn secondary" id="shelf-drop-btn">Déposer sélection</button>
+        <button class="btn secondary" id="shelf-drop-btn">Déposer 1 touche</button>
         <button class="btn secondary" id="shelf-drop-all-btn">Tout déposer</button>
       </div>
       <div class="toast" id="shelf-drop-toast"></div>
-      <div id="shelf-ground"></div>
       <div id="shelf-boards"></div>
     </div>
   </div>
@@ -614,6 +617,26 @@
     renderAll();
   }
 
+  function trimPile(arr){
+    while(arr.length>PILE_MAX){
+      const idx = arr.findIndex(k=>k.taken);
+      if(idx===-1) break; // safety: never remove a real (untaken) key
+      arr.splice(idx,1);
+    }
+  }
+  function sanitizePiles(){
+    for(let y=0;y<ROWS;y++){
+      for(let x=0;x<COLS;x++){
+        const cell = state.grid[y][x];
+        if(cell.type==='cache' && cell.keys && cell.keys.length>PILE_MAX) trimPile(cell.keys);
+      }
+    }
+    Object.keys(state.groundPiles).forEach(k=>{
+      const arr = state.groundPiles[k];
+      if(arr && arr.length>PILE_MAX) trimPile(arr);
+    });
+  }
+
   function resumeGame(){
     const saved = loadSavedGame();
     if(!saved) return;
@@ -624,6 +647,7 @@
       if(typeof state.hasMagnet!=='boolean') state.hasMagnet=false;
       if(typeof state.hasTeleport!=='boolean') state.hasTeleport=false;
       if(typeof state.round!=='number') state.round=1;
+      sanitizePiles();
       document.getElementById('screen-mode').classList.add('hidden');
       document.getElementById('screen-game').classList.remove('hidden');
       updateHudMode();
@@ -714,6 +738,7 @@
   }
 
   function renderAll(){
+    sanitizePiles();
     renderHud();
     document.getElementById('view-map').classList.toggle('hidden', state.panel!=='map');
     document.getElementById('view-cache').classList.toggle('hidden', state.panel!=='cache');
@@ -735,26 +760,22 @@
     if(state.hasMagnet && state.hasTeleport) unlockAchievement('tout_automatise');
   }
 
-  function renderTrayInto(containerId, onSelect){
+  function renderTrayInto(containerId){
     const el=document.getElementById(containerId);
     const prevScroll = el.scrollTop;
     el.innerHTML='';
     state.tray.forEach(k=>{
       const d=document.createElement('div');
-      d.className='key'+(state.selectedUid===k.uid ? ' selected' : '');
+      d.className='key';
       d.style.background=colorOf(k.color).hex;
       d.textContent=k.char;
-      d.addEventListener('click', ()=>{
-        state.selectedUid = state.selectedUid===k.uid ? null : k.uid;
-        onSelect();
-      });
       el.appendChild(d);
     });
     el.scrollTop = prevScroll;
   }
 
-  function updateDropButton(btnId){
-    document.getElementById(btnId).disabled = !state.selectedUid;
+  function updateDropOneButton(btnId){
+    document.getElementById(btnId).disabled = state.tray.length===0;
   }
   function updateDropAllButton(btnId){
     document.getElementById(btnId).disabled = state.tray.length===0;
@@ -773,6 +794,7 @@
   // possible so the pile never grows past PILE_MAX and every key stays visible
   // in the fixed-size mosaic. Returns true if the key was placed.
   function depositKeyIntoPile(arr, key){
+    key.taken = false; // a key sitting in the bag is not "taken" from its new pile
     const reuseIdx = arr.findIndex(k=>k.taken);
     if(reuseIdx!==-1){ arr[reuseIdx]=key; return true; }
     if(arr.length<PILE_MAX){ arr.push(key); return true; }
@@ -785,20 +807,21 @@
     if(el) el.textContent = msg;
   }
 
-  function dropSelected(){
-    if(!state.selectedUid) return;
+  // Drops the oldest key in the bag — no selection step needed, same "always
+  // act on the first matching item" pattern as the keyboard placement flow.
+  function dropOne(){
+    if(state.tray.length===0) return;
     showDropToast('');
     const cell = state.grid[state.player.y][state.player.x];
-    const key = state.tray.find(k=>k.uid===state.selectedUid);
-    if(!key) return;
     const coordKey=state.player.x+','+state.player.y;
     const arr = getDropTargetArr(cell, coordKey);
+    const key = state.tray[0];
     if(!depositKeyIntoPile(arr, key)){
       showDropToast('Cette pile est pleine (25 max) — vas-y avec une autre touche ou un autre endroit.');
       return;
     }
+    key.dropped = true;
     state.tray = state.tray.filter(k=>k.uid!==key.uid);
-    state.selectedUid=null;
     renderAll();
   }
 
@@ -812,11 +835,10 @@
     const remaining=[];
     let placedCount=0;
     keysToDrop.forEach(key=>{
-      if(depositKeyIntoPile(arr, key)) placedCount++;
+      if(depositKeyIntoPile(arr, key)){ key.dropped=true; placedCount++; }
       else remaining.push(key);
     });
     state.tray = remaining;
-    state.selectedUid=null;
     if(remaining.length>0){
       showDropToast('Pile pleine : '+placedCount+' touche(s) déposée(s), '+remaining.length+' restée(s) dans le sac.');
     }
@@ -878,8 +900,8 @@
 
   function renderMapPanel(){
     renderMap();
-    renderTrayInto('map-tray', renderMapPanel);
-    updateDropButton('map-drop-btn');
+    renderTrayInto('map-tray');
+    updateDropOneButton('map-drop-btn');
     updateDropAllButton('map-drop-all-btn');
     const info = currentEnterable();
     const btn = document.getElementById('enter-btn');
@@ -889,12 +911,11 @@
   }
 
   function buildMosaic(container, keysArr){
-    const untaken = keysArr.filter(k=>!k.taken);
     const mosaic=document.createElement('div');
     mosaic.className='mosaic';
     for(let i=0;i<25;i++){
       const cellDiv=document.createElement('div');
-      if(untaken[i]) cellDiv.style.background = colorOf(untaken[i].color).hex;
+      if(keysArr[i] && !keysArr[i].taken) cellDiv.style.background = colorOf(keysArr[i].color).hex;
       mosaic.appendChild(cellDiv);
     }
     container.appendChild(mosaic);
@@ -936,7 +957,11 @@
     const info = currentPileInfo();
     const arr = info.arr || [];
     const remaining = arr.filter(k=>!k.taken).length;
+    const droppedCount = arr.filter(k=>!k.taken && k.dropped).length;
     document.getElementById('cache-title').textContent = (info.source==='ground' ? 'Touches déposées (' : 'Cache (') + remaining + ' restantes)';
+    document.getElementById('cache-subtitle').textContent = droppedCount>0
+      ? droppedCount+' d\u2019entre elles ont un anneau rouge : ce sont celles que tu as déposées ici.'
+      : '';
     const grid = document.getElementById('cache-grid');
     const prevScroll = grid.scrollTop;
     grid.innerHTML='';
@@ -945,7 +970,7 @@
       const d=document.createElement('div');
       if(k.taken){ d.className='key-empty'; }
       else {
-        d.className='key';
+        d.className='key'+(k.dropped ? ' dropped' : '');
         d.style.background=colorOf(k.color).hex;
         d.textContent=k.char;
         d.addEventListener('click', ()=>collectKeyGeneric(k, info, d));
@@ -969,11 +994,13 @@
   function renderShelfGroundPile(container, coordKey){
     const pile = state.groundPiles[coordKey];
     if(!pile || pile.length===0) return;
+    const wrap=document.createElement('div');
+    wrap.style.cssText='background:var(--panel-alt);border:2px solid var(--danger);border-radius:6px;padding:8px;margin-bottom:10px;';
     const label=document.createElement('div');
-    label.className='section-label';
-    label.textContent='Touches déposées ici (' + pile.length + ') — touche pour les reprendre';
-    container.appendChild(label);
-    const row=document.createElement('div'); row.className='key-grid'; row.style.maxHeight='90px';
+    label.style.cssText='font-size:0.62rem;color:var(--danger);font-weight:700;margin-bottom:4px;';
+    label.textContent='\u26A0\uFE0F Touches déposées ici (' + pile.length + ') — touche pour les reprendre';
+    wrap.appendChild(label);
+    const row=document.createElement('div'); row.className='key-grid'; row.style.maxHeight='90px'; row.style.marginBottom='0';
     pile.forEach(k=>{
       const d=document.createElement('div'); d.className='key';
       d.style.background=colorOf(k.color).hex; d.textContent=k.char;
@@ -985,7 +1012,8 @@
       });
       row.appendChild(d);
     });
-    container.appendChild(row);
+    wrap.appendChild(row);
+    container.appendChild(wrap);
   }
 
   function mistakeShake(el){
@@ -1105,8 +1133,8 @@
 
     renderActiveSection(colorId);
 
-    renderTrayInto('shelf-tray', renderShelf);
-    updateDropButton('shelf-drop-btn');
+    renderTrayInto('shelf-tray');
+    updateDropOneButton('shelf-drop-btn');
     updateDropAllButton('shelf-drop-all-btn');
 
     const groundEl = document.getElementById('shelf-ground');
@@ -1182,9 +1210,9 @@
   document.getElementById('shop-toggle-btn').addEventListener('click', toggleShop);
   document.getElementById('cache-close').addEventListener('click', ()=>{ state.panel='map'; renderAll(); });
   document.getElementById('shelf-close').addEventListener('click', ()=>{ state.panel='map'; renderAll(); });
-  document.getElementById('map-drop-btn').addEventListener('click', dropSelected);
+  document.getElementById('map-drop-btn').addEventListener('click', dropOne);
   document.getElementById('map-drop-all-btn').addEventListener('click', dropAll);
-  document.getElementById('shelf-drop-btn').addEventListener('click', dropSelected);
+  document.getElementById('shelf-drop-btn').addEventListener('click', dropOne);
   document.getElementById('shelf-drop-all-btn').addEventListener('click', dropAll);
   document.getElementById('shop-upgrade-btn').addEventListener('click', buyTrayUpgrade);
   document.getElementById('shop-magnet-btn').addEventListener('click', buyMagnet);
