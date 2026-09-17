@@ -148,8 +148,8 @@
   .btn:disabled{ opacity:0.5; cursor:default; }
 
   .tray-strip{
-    display:flex; flex-wrap:wrap; gap:6px; margin-bottom:8px; min-height:36px;
-    padding:6px; background:var(--panel-alt); border-radius:4px; max-height:110px; overflow-y:auto;
+    display:flex; flex-wrap:wrap; align-content:flex-start; gap:6px; margin-bottom:8px;
+    height:60px; padding:6px; background:var(--panel-alt); border-radius:4px; overflow-y:auto;
   }
   .tray-strip:empty::after{ content:"Inventaire vide"; font-size:0.62rem; color:var(--muted); }
 
@@ -254,6 +254,7 @@
         <button class="btn secondary" id="map-drop-btn">Déposer sélection</button>
         <button class="btn secondary" id="map-drop-all-btn">Tout déposer</button>
       </div>
+      <div class="toast" id="map-drop-toast"></div>
 
       <button class="shop-toggle" id="shop-toggle-btn">🛒 Boutique ▾</button>
       <div id="shop-panel" class="hidden">
@@ -295,6 +296,7 @@
         <button class="btn secondary" id="shelf-drop-btn">Déposer sélection</button>
         <button class="btn secondary" id="shelf-drop-all-btn">Tout déposer</button>
       </div>
+      <div class="toast" id="shelf-drop-toast"></div>
       <div id="shelf-ground"></div>
       <div id="shelf-boards"></div>
     </div>
@@ -733,6 +735,7 @@
 
   function renderTrayInto(containerId, onSelect){
     const el=document.getElementById(containerId);
+    const prevScroll = el.scrollTop;
     el.innerHTML='';
     state.tray.forEach(k=>{
       const d=document.createElement('div');
@@ -745,6 +748,7 @@
       });
       el.appendChild(d);
     });
+    el.scrollTop = prevScroll;
   }
 
   function updateDropButton(btnId){
@@ -754,18 +758,42 @@
     document.getElementById(btnId).disabled = state.tray.length===0;
   }
 
+  function getDropTargetArr(cell, coordKey){
+    if(cell.type==='cache'){
+      if(!cell.keys) cell.keys=[];
+      return cell.keys;
+    }
+    if(!state.groundPiles[coordKey]) state.groundPiles[coordKey]=[];
+    return state.groundPiles[coordKey];
+  }
+
+  // Deposits a key into a pile, reusing an already-taken (collected) slot when
+  // possible so the pile never grows past PILE_MAX and every key stays visible
+  // in the fixed-size mosaic. Returns true if the key was placed.
+  function depositKeyIntoPile(arr, key){
+    const reuseIdx = arr.findIndex(k=>k.taken);
+    if(reuseIdx!==-1){ arr[reuseIdx]=key; return true; }
+    if(arr.length<PILE_MAX){ arr.push(key); return true; }
+    return false;
+  }
+
+  function showDropToast(msg){
+    const id = state.panel==='shelf' ? 'shelf-drop-toast' : 'map-drop-toast';
+    const el = document.getElementById(id);
+    if(el) el.textContent = msg;
+  }
+
   function dropSelected(){
     if(!state.selectedUid) return;
+    showDropToast('');
     const cell = state.grid[state.player.y][state.player.x];
     const key = state.tray.find(k=>k.uid===state.selectedUid);
     if(!key) return;
-    if(cell.type==='cache'){
-      if(!cell.keys) cell.keys=[];
-      cell.keys.push(key);
-    } else {
-      const coordKey=state.player.x+','+state.player.y;
-      if(!state.groundPiles[coordKey]) state.groundPiles[coordKey]=[];
-      state.groundPiles[coordKey].push(key);
+    const coordKey=state.player.x+','+state.player.y;
+    const arr = getDropTargetArr(cell, coordKey);
+    if(!depositKeyIntoPile(arr, key)){
+      showDropToast('Cette pile est pleine (25 max) — vas-y avec une autre touche ou un autre endroit.');
+      return;
     }
     state.tray = state.tray.filter(k=>k.uid!==key.uid);
     state.selectedUid=null;
@@ -774,18 +802,22 @@
 
   function dropAll(){
     if(state.tray.length===0) return;
+    showDropToast('');
     const cell = state.grid[state.player.y][state.player.x];
+    const coordKey=state.player.x+','+state.player.y;
+    const arr = getDropTargetArr(cell, coordKey);
     const keysToDrop = state.tray.slice();
-    if(cell.type==='cache'){
-      if(!cell.keys) cell.keys=[];
-      cell.keys.push(...keysToDrop);
-    } else {
-      const coordKey=state.player.x+','+state.player.y;
-      if(!state.groundPiles[coordKey]) state.groundPiles[coordKey]=[];
-      state.groundPiles[coordKey].push(...keysToDrop);
-    }
-    state.tray=[];
+    const remaining=[];
+    let placedCount=0;
+    keysToDrop.forEach(key=>{
+      if(depositKeyIntoPile(arr, key)) placedCount++;
+      else remaining.push(key);
+    });
+    state.tray = remaining;
     state.selectedUid=null;
+    if(remaining.length>0){
+      showDropToast('Pile pleine : '+placedCount+' touche(s) déposée(s), '+remaining.length+' restée(s) dans le sac.');
+    }
     renderAll();
   }
 
@@ -903,6 +935,7 @@
     const remaining = arr.filter(k=>!k.taken).length;
     document.getElementById('cache-title').textContent = (info.source==='ground' ? 'Touches déposées (' : 'Cache (') + remaining + ' restantes)';
     const grid = document.getElementById('cache-grid');
+    const prevScroll = grid.scrollTop;
     grid.innerHTML='';
     document.getElementById('cache-toast').textContent='';
     arr.forEach(k=>{
@@ -916,6 +949,7 @@
       }
       grid.appendChild(d);
     });
+    grid.scrollTop = prevScroll;
   }
 
   function collectKeyGeneric(key, info, el){
