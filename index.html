@@ -637,6 +637,56 @@
     });
   }
 
+  function sanitizeKeyboards(){
+    COLORS.forEach(c=>{
+      const kb = state.keyboards[c.id];
+      const groups = state.mode==='dependance' ? [kb.B.upper, kb.B.lower] : [kb.upper, kb.lower];
+      groups.forEach(zoneObj=>{
+        const seen = new Set();
+        const deduped = [];
+        let removed = 0;
+        zoneObj.collected.forEach(ch=>{
+          if(seen.has(ch)){ removed++; } else { seen.add(ch); deduped.push(ch); }
+        });
+        if(removed>0){
+          zoneObj.collected = deduped;
+          state.totalPlaced = Math.max(0, state.totalPlaced - removed);
+        }
+      });
+    });
+  }
+
+  // Repairs saves affected by the old shared-reference bug: the same physical
+  // key could end up sitting untaken in two places at once (its original pile
+  // and wherever it was later dropped). Keeps the first copy found, blanks any
+  // further copies out to an inert placeholder.
+  function sanitizeDuplicateKeys(){
+    const seen = new Set();
+    function scan(arr){
+      for(let i=0;i<arr.length;i++){
+        const item = arr[i];
+        if(!item || item.taken || !item.color || !item.char) continue;
+        const k = item.color+'|'+item.char;
+        if(seen.has(k)) arr[i] = {taken:true};
+        else seen.add(k);
+      }
+    }
+    for(let y=0;y<ROWS;y++){
+      for(let x=0;x<COLS;x++){
+        const cell = state.grid[y][x];
+        if(cell.type==='cache' && cell.keys) scan(cell.keys);
+      }
+    }
+    Object.keys(state.groundPiles).forEach(k=>scan(state.groundPiles[k]));
+    state.tray = state.tray.filter(item=>{
+      if(!item.color || !item.char) return true;
+      const k=item.color+'|'+item.char;
+      if(seen.has(k)) return false;
+      seen.add(k);
+      return true;
+    });
+  }
+
   function resumeGame(){
     const saved = loadSavedGame();
     if(!saved) return;
@@ -648,6 +698,8 @@
       if(typeof state.hasTeleport!=='boolean') state.hasTeleport=false;
       if(typeof state.round!=='number') state.round=1;
       sanitizePiles();
+      sanitizeKeyboards();
+      sanitizeDuplicateKeys();
       document.getElementById('screen-mode').classList.add('hidden');
       document.getElementById('screen-game').classList.remove('hidden');
       updateHudMode();
@@ -687,9 +739,9 @@
     if(!state.hasMagnet) return;
     const info = currentPileInfo();
     if(!info.arr) return;
-    info.arr.forEach(k=>{
+    info.arr.forEach((k,idx)=>{
       if(!k.taken && state.tray.length<getTrayCap()){
-        k.taken=true;
+        info.arr[idx] = {taken:true}; // inert placeholder: fully independent of the key now in the bag
         state.tray.push(k);
       }
     });
@@ -739,6 +791,7 @@
 
   function renderAll(){
     sanitizePiles();
+    sanitizeKeyboards();
     renderHud();
     document.getElementById('view-map').classList.toggle('hidden', state.panel!=='map');
     document.getElementById('view-cache').classList.toggle('hidden', state.panel!=='cache');
@@ -986,7 +1039,8 @@
       el.classList.add('shake'); setTimeout(()=>el.classList.remove('shake'), 300);
       return;
     }
-    key.taken = true;
+    const idx = info.arr.indexOf(key);
+    if(idx!==-1) info.arr[idx] = {taken:true}; // inert placeholder: fully independent of the key now in the bag
     state.tray.push(key);
     renderCache(); renderHud(); saveGame();
   }
@@ -1060,9 +1114,11 @@
     if(zoneName==='digits' || zoneName==='specials'){
       const zone=getZone(colorId, zoneName);
       const slot=zone.find(s=>s.char===key.char && !s.filled);
-      if(slot) slot.filled=true;
+      if(!slot){ mistakeShake(btnEl); return; } // already filled or no matching slot: don't count as a success
+      slot.filled=true;
     } else {
       const zoneObj=getZone(colorId, zoneName);
+      if(zoneObj.collected.includes(key.char)){ mistakeShake(btnEl); return; } // already have this letter: don't duplicate
       zoneObj.collected.push(key.char);
     }
     afterPlaceCheckUnlock(colorId);
