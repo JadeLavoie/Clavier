@@ -130,7 +130,7 @@
   }
   .key:active{ transform:scale(0.92); }
   .key.selected{ border-color:var(--text); box-shadow:0 0 0 2px var(--accent); }
-  .key.dropped{ box-shadow:0 0 0 2px var(--danger); }
+  .key.dropped{ box-shadow:0 0 0 2px var(--accent); }
   .key.shake, .slot.shake, .cat-btn.shake{ animation:shake 0.3s ease; }
   @keyframes shake{ 0%,100%{transform:translateX(0);} 25%{transform:translateX(-4px);} 75%{transform:translateX(4px);} }
   .slot.pop{ animation:pop 0.35s ease; }
@@ -296,7 +296,7 @@
         <div class="cat-buttons" id="cat-buttons"></div>
       </div>
 
-      <div class="section-label">Ton sac (pour déposer une touche ailleurs)</div>
+      <div class="section-label">Ton sac (touche une touche pour la choisir ; sinon la plus ancienne est utilisée)</div>
       <div class="tray-strip" id="shelf-tray"></div>
       <div class="drop-buttons">
         <button class="btn secondary" id="shelf-drop-btn">Déposer 1 touche</button>
@@ -662,6 +662,20 @@
   // further copies out to an inert placeholder.
   function sanitizeDuplicateKeys(){
     const seen = new Set();
+    // Anything already legitimately placed in a keyboard "claims" that
+    // (color, char) — a matching key object still loose in the world is a
+    // leftover ghost from the old sharing bug and must be blanked out too.
+    COLORS.forEach(c=>{
+      const kb = state.keyboards[c.id];
+      const digitsZone = state.mode==='dependance' ? kb.A.digits : kb.digits;
+      const specialsZone = state.mode==='dependance' ? kb.A.specials : kb.specials;
+      digitsZone.forEach(s=>{ if(s.filled) seen.add(c.id+'|'+s.char); });
+      specialsZone.forEach(s=>{ if(s.filled) seen.add(c.id+'|'+s.char); });
+      const upperZone = state.mode==='dependance' ? kb.B.upper : kb.upper;
+      const lowerZone = state.mode==='dependance' ? kb.B.lower : kb.lower;
+      upperZone.collected.forEach(ch=>seen.add(c.id+'|'+ch));
+      lowerZone.collected.forEach(ch=>seen.add(c.id+'|'+ch));
+    });
     function scan(arr){
       for(let i=0;i<arr.length;i++){
         const item = arr[i];
@@ -792,6 +806,7 @@
   function renderAll(){
     sanitizePiles();
     sanitizeKeyboards();
+    sanitizeDuplicateKeys();
     renderHud();
     document.getElementById('view-map').classList.toggle('hidden', state.panel!=='map');
     document.getElementById('view-cache').classList.toggle('hidden', state.panel!=='cache');
@@ -819,9 +834,13 @@
     el.innerHTML='';
     state.tray.forEach(k=>{
       const d=document.createElement('div');
-      d.className='key';
+      d.className='key'+(state.selectedUid===k.uid ? ' selected' : '');
       d.style.background=colorOf(k.color).hex;
       d.textContent=k.char;
+      d.addEventListener('click', ()=>{
+        state.selectedUid = state.selectedUid===k.uid ? null : k.uid;
+        renderAll();
+      });
       el.appendChild(d);
     });
     el.scrollTop = prevScroll;
@@ -868,13 +887,13 @@
     const cell = state.grid[state.player.y][state.player.x];
     const coordKey=state.player.x+','+state.player.y;
     const arr = getDropTargetArr(cell, coordKey);
-    const key = state.tray[0];
+    const key = state.tray.find(k=>k.uid===state.selectedUid) || state.tray[0];
     if(!depositKeyIntoPile(arr, key)){
       showDropToast('Cette pile est pleine (25 max) — vas-y avec une autre touche ou un autre endroit.');
       return;
     }
-    key.dropped = true;
     state.tray = state.tray.filter(k=>k.uid!==key.uid);
+    state.selectedUid = null;
     renderAll();
   }
 
@@ -1010,11 +1029,8 @@
     const info = currentPileInfo();
     const arr = info.arr || [];
     const remaining = arr.filter(k=>!k.taken).length;
-    const droppedCount = arr.filter(k=>!k.taken && k.dropped).length;
     document.getElementById('cache-title').textContent = (info.source==='ground' ? 'Touches déposées (' : 'Cache (') + remaining + ' restantes)';
-    document.getElementById('cache-subtitle').textContent = droppedCount>0
-      ? droppedCount+' d\u2019entre elles ont un anneau rouge : ce sont celles que tu as déposées ici.'
-      : '';
+    document.getElementById('cache-subtitle').textContent = '';
     const grid = document.getElementById('cache-grid');
     const prevScroll = grid.scrollTop;
     grid.innerHTML='';
@@ -1023,7 +1039,7 @@
       const d=document.createElement('div');
       if(k.taken){ d.className='key-empty'; }
       else {
-        d.className='key'+(k.dropped ? ' dropped' : '');
+        d.className='key';
         d.style.background=colorOf(k.color).hex;
         d.textContent=k.char;
         d.addEventListener('click', ()=>collectKeyGeneric(k, info, d));
@@ -1049,10 +1065,11 @@
     const pile = state.groundPiles[coordKey];
     if(!pile || pile.length===0) return;
     const wrap=document.createElement('div');
-    wrap.style.cssText='background:var(--panel-alt);border:2px solid var(--danger);border-radius:6px;padding:8px;margin-bottom:10px;';
+    wrap.style.cssText='background:var(--panel-alt);border-radius:6px;padding:8px;margin-bottom:10px;';
     const label=document.createElement('div');
-    label.style.cssText='font-size:0.62rem;color:var(--danger);font-weight:700;margin-bottom:4px;';
-    label.textContent='\u26A0\uFE0F Touches déposées ici (' + pile.length + ') — touche pour les reprendre';
+    label.className='section-label';
+    label.style.marginTop='0';
+    label.textContent='Touches déposées ici (' + pile.length + ') — touche pour les reprendre';
     wrap.appendChild(label);
     const row=document.createElement('div'); row.className='key-grid'; row.style.maxHeight='90px'; row.style.marginBottom='0';
     pile.forEach(k=>{
@@ -1077,11 +1094,19 @@
     renderHud(); saveGame();
   }
 
+  function getActiveKeyForShelf(colorId){
+    if(state.selectedUid){
+      const sel = state.tray.find(k=>k.uid===state.selectedUid);
+      if(sel && sel.color===colorId) return sel;
+    }
+    return state.tray.find(k=>k.color===colorId);
+  }
+
   function renderActiveSection(colorId){
     const box=document.getElementById('active-box');
     const cats=document.getElementById('cat-buttons');
     box.innerHTML=''; cats.innerHTML='';
-    const key = state.tray.find(k=>k.color===colorId);
+    const key = getActiveKeyForShelf(colorId);
     if(!key){
       const empty=document.createElement('div');
       empty.className='active-empty';
@@ -1106,7 +1131,7 @@
   }
 
   function attemptPlaceActive(colorId, zoneName, btnEl){
-    const key = state.tray.find(k=>k.color===colorId);
+    const key = getActiveKeyForShelf(colorId);
     if(!key) return;
     if(getLocked(colorId, zoneName)){ mistakeShake(btnEl); return; }
     if(key.type!==zoneName){ mistakeShake(btnEl); return; }
@@ -1123,6 +1148,7 @@
     }
     afterPlaceCheckUnlock(colorId);
     state.tray = state.tray.filter(k=>k.uid!==key.uid);
+    if(state.selectedUid===key.uid) state.selectedUid=null;
     state.totalPlaced++;
     state.score+=10;
     state.money+=1;
