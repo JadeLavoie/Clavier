@@ -118,13 +118,6 @@
   }
   .tp-swatch:active{ transform:translateY(1px); }
 
-  .drop-color-row{ display:flex; flex-wrap:wrap; gap:6px; margin-bottom:8px; }
-  .color-drop-swatch{
-    width:34px; height:34px; border-radius:6px; border:none; cursor:pointer;
-    color:#fff; font-weight:700; font-size:0.68rem; display:flex; align-items:center; justify-content:center;
-  }
-  .color-drop-swatch:active{ transform:translateY(1px); }
-
   .key-grid{
     display:grid; grid-template-columns:repeat(5, 1fr); gap:6px; margin-bottom:10px; min-height:40px;
     max-height:280px; overflow-y:auto; padding-right:2px;
@@ -218,7 +211,7 @@
 </style>
 </head>
 <body>
-<div class="app" id="app-scroll">
+<div class="app">
   <h1>&#9000;&#65039; Clavier Perdu</h1>
 
   <div id="screen-mode">
@@ -273,10 +266,6 @@
         <button class="btn secondary" id="map-drop-all-btn">Tout déposer</button>
       </div>
       <div class="toast" id="map-drop-toast"></div>
-      <div id="map-drop-color-wrap" class="hidden">
-        <div class="section-label">Déposer par couleur</div>
-        <div class="drop-color-row" id="map-drop-colors"></div>
-      </div>
 
       <button class="btn" id="enter-btn">Rien à faire ici</button>
       <div class="dpad">
@@ -294,18 +283,6 @@
       <div class="section-label" id="cache-subtitle"></div>
       <div class="key-grid" id="cache-grid"></div>
       <div class="toast" id="cache-toast"></div>
-
-      <div class="section-label">Ton sac (touche une touche pour la choisir ; sinon la plus ancienne est utilisée)</div>
-      <div class="tray-strip" id="cache-tray"></div>
-      <div class="drop-buttons">
-        <button class="btn secondary" id="cache-drop-btn">Déposer 1 touche</button>
-        <button class="btn secondary" id="cache-drop-all-btn">Tout déposer</button>
-      </div>
-      <div class="toast" id="cache-drop-toast"></div>
-      <div id="cache-drop-color-wrap" class="hidden">
-        <div class="section-label">Déposer par couleur</div>
-        <div class="drop-color-row" id="cache-drop-colors"></div>
-      </div>
     </div>
 
     <div id="view-shelf" class="panel hidden">
@@ -326,10 +303,6 @@
         <button class="btn secondary" id="shelf-drop-all-btn">Tout déposer</button>
       </div>
       <div class="toast" id="shelf-drop-toast"></div>
-      <div id="shelf-drop-color-wrap" class="hidden">
-        <div class="section-label">Déposer par couleur</div>
-        <div class="drop-color-row" id="shelf-drop-colors"></div>
-      </div>
       <div id="shelf-boards"></div>
     </div>
   </div>
@@ -548,12 +521,7 @@
   }
   function buyMagnet(){
     if(state.hasMagnet || state.money<MAGNET_COST) return;
-    state.money-=MAGNET_COST; state.hasMagnet=true; state.magnetActive=true;
-    renderAll();
-  }
-  function toggleMagnet(){
-    if(!state.hasMagnet) return;
-    state.magnetActive = !state.magnetActive;
+    state.money-=MAGNET_COST; state.hasMagnet=true;
     renderAll();
   }
   function buyTeleport(){
@@ -741,7 +709,6 @@
       if(typeof state.money!=='number') state.money=0;
       if(typeof state.trayUpgrades!=='number') state.trayUpgrades=0;
       if(typeof state.hasMagnet!=='boolean') state.hasMagnet=false;
-      if(typeof state.magnetActive!=='boolean') state.magnetActive=true;
       if(typeof state.hasTeleport!=='boolean') state.hasTeleport=false;
       if(typeof state.round!=='number') state.round=1;
       sanitizePiles();
@@ -783,7 +750,7 @@
   }
 
   function autoCollectIfMagnet(){
-    if(!state.hasMagnet || !state.magnetActive) return;
+    if(!state.hasMagnet) return;
     const info = currentPileInfo();
     if(!info.arr) return;
     info.arr.forEach((k,idx)=>{
@@ -837,8 +804,6 @@
   }
 
   function renderAll(){
-    const appEl = document.getElementById('app-scroll');
-    const prevAppScroll = appEl ? appEl.scrollTop : 0;
     sanitizePiles();
     sanitizeKeyboards();
     sanitizeDuplicateKeys();
@@ -850,7 +815,6 @@
     if(state.panel==='cache') renderCache();
     if(state.panel==='shelf') renderShelf();
     saveGame();
-    if(appEl) appEl.scrollTop = prevAppScroll;
   }
 
   function renderHud(){
@@ -910,9 +874,7 @@
   }
 
   function showDropToast(msg){
-    let id = 'map-drop-toast';
-    if(state.panel==='shelf') id='shelf-drop-toast';
-    else if(state.panel==='cache') id='cache-drop-toast';
+    const id = state.panel==='shelf' ? 'shelf-drop-toast' : 'map-drop-toast';
     const el = document.getElementById(id);
     if(el) el.textContent = msg;
   }
@@ -955,50 +917,6 @@
     renderAll();
   }
 
-  function dropByColor(colorId){
-    const hasAny = state.tray.some(k=>k.color===colorId);
-    if(!hasAny) return;
-    showDropToast('');
-    const cell = state.grid[state.player.y][state.player.x];
-    const coordKey=state.player.x+','+state.player.y;
-    const arr = getDropTargetArr(cell, coordKey);
-    const remaining=[];
-    let placedCount=0;
-    state.tray.forEach(key=>{
-      if(key.color!==colorId){ remaining.push(key); return; }
-      if(depositKeyIntoPile(arr, key)) placedCount++;
-      else remaining.push(key);
-    });
-    state.tray = remaining;
-    if(state.selectedUid && !state.tray.find(k=>k.uid===state.selectedUid)) state.selectedUid=null;
-    const stillStuck = remaining.filter(k=>k.color===colorId).length;
-    if(stillStuck>0){
-      showDropToast('Pile pleine : '+placedCount+' touche(s) '+colorOf(colorId).label+' déposée(s), '+stillStuck+' restée(s) dans le sac.');
-    }
-    renderAll();
-  }
-
-  function renderDropColorRow(wrapId, rowId){
-    const wrap=document.getElementById(wrapId);
-    const row=document.getElementById(rowId);
-    row.innerHTML='';
-    const colorsPresent=[];
-    COLORS.forEach(c=>{
-      const count = state.tray.filter(k=>k.color===c.id).length;
-      if(count>0) colorsPresent.push({c, count});
-    });
-    wrap.classList.toggle('hidden', colorsPresent.length===0);
-    colorsPresent.forEach(({c,count})=>{
-      const btn=document.createElement('button');
-      btn.className='color-drop-swatch';
-      btn.style.background=c.hex;
-      btn.textContent = count>1 ? count : '';
-      btn.title = c.label;
-      btn.addEventListener('click', ()=>dropByColor(c.id));
-      row.appendChild(btn);
-    });
-  }
-
   function renderShopButtons(){
     const capBtn=document.getElementById('shop-upgrade-btn');
     if(getTrayCap()>=MAX_CAP){
@@ -1012,15 +930,11 @@
 
     const magnetBtn=document.getElementById('shop-magnet-btn');
     if(state.hasMagnet){
-      magnetBtn.textContent = state.magnetActive
-        ? 'Aimant : Actif \u26A1 (touche pour désactiver)'
-        : 'Aimant : Inactif (touche pour activer)';
-      magnetBtn.disabled=false; magnetBtn.classList.toggle('owned', state.magnetActive);
-      magnetBtn.onclick = toggleMagnet;
+      magnetBtn.textContent='Aimant acquis \u2713 (ramassage automatique actif)';
+      magnetBtn.disabled=true; magnetBtn.classList.add('owned');
     } else {
       magnetBtn.textContent="Acheter l'Aimant (ramassage auto) — "+MAGNET_COST+'$';
       magnetBtn.disabled = state.money<MAGNET_COST; magnetBtn.classList.remove('owned');
-      magnetBtn.onclick = buyMagnet;
     }
 
     const tpBtn=document.getElementById('shop-teleport-btn');
@@ -1061,7 +975,6 @@
     renderTrayInto('map-tray');
     updateDropOneButton('map-drop-btn');
     updateDropAllButton('map-drop-all-btn');
-    renderDropColorRow('map-drop-color-wrap','map-drop-colors');
     const info = currentEnterable();
     const btn = document.getElementById('enter-btn');
     btn.disabled = !info;
@@ -1134,11 +1047,6 @@
       grid.appendChild(d);
     });
     grid.scrollTop = prevScroll;
-
-    renderTrayInto('cache-tray');
-    updateDropOneButton('cache-drop-btn');
-    updateDropAllButton('cache-drop-all-btn');
-    renderDropColorRow('cache-drop-color-wrap','cache-drop-colors');
   }
 
   function collectKeyGeneric(key, info, el){
@@ -1310,7 +1218,6 @@
     renderTrayInto('shelf-tray');
     updateDropOneButton('shelf-drop-btn');
     updateDropAllButton('shelf-drop-all-btn');
-    renderDropColorRow('shelf-drop-color-wrap','shelf-drop-colors');
 
     const groundEl = document.getElementById('shelf-ground');
     groundEl.innerHTML='';
@@ -1389,9 +1296,8 @@
   document.getElementById('map-drop-all-btn').addEventListener('click', dropAll);
   document.getElementById('shelf-drop-btn').addEventListener('click', dropOne);
   document.getElementById('shelf-drop-all-btn').addEventListener('click', dropAll);
-  document.getElementById('cache-drop-btn').addEventListener('click', dropOne);
-  document.getElementById('cache-drop-all-btn').addEventListener('click', dropAll);
   document.getElementById('shop-upgrade-btn').addEventListener('click', buyTrayUpgrade);
+  document.getElementById('shop-magnet-btn').addEventListener('click', buyMagnet);
   document.getElementById('shop-teleport-btn').addEventListener('click', buyTeleport);
   document.getElementById('next-round-btn').addEventListener('click', nextRound);
   document.getElementById('restart').addEventListener('click', ()=>{
