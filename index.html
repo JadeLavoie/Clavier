@@ -34,8 +34,7 @@
   body{
     margin:0; background:var(--bg); color:var(--text);
     font-family:'IBM Plex Mono', 'Courier New', monospace;
-    overflow:hidden;
-    display:flex; justify-content:center;
+    overflow:hidden; display:flex; justify-content:center;
     padding:10px 10px 10px;
   }
   .app{
@@ -45,7 +44,12 @@
     padding-bottom:14px;
   }
 
-  h1{ font-size:1.02rem; font-weight:700; letter-spacing:0.02em; margin:0 0 2px; text-align:center; }
+  .topbar{ display:flex; align-items:center; justify-content:center; gap:8px; margin-bottom:2px; position:relative; }
+  .gear-btn{
+    position:absolute; right:0; top:0; background:var(--panel); border:1px solid var(--grid-line);
+    border-radius:6px; width:30px; height:30px; font-size:0.95rem; cursor:pointer; color:var(--text);
+  }
+  h1{ font-size:1.02rem; font-weight:700; letter-spacing:0.02em; margin:0; text-align:center; }
   .tagline{ text-align:center; font-size:0.64rem; color:var(--muted); margin-bottom:10px; }
 
   .mode-card{ background:var(--panel); border:1px solid var(--grid-line); border-radius:6px; padding:14px; margin-bottom:12px; }
@@ -62,6 +66,27 @@
   .hud{ display:grid; grid-template-columns:repeat(5,1fr); gap:4px; margin-bottom:4px; }
   .hud div{ background:var(--panel); border:1px solid var(--grid-line); border-radius:4px; padding:2px 3px; text-align:center; font-size:0.5rem; color:var(--muted); }
   .hud b{ display:block; font-size:0.66rem; color:var(--text); }
+
+  #screen-game{ padding-bottom:64px; }
+
+  .game-layout{ display:block; }
+  .tab-panel{ display:none; }
+  .tab-panel.active{ display:block; }
+
+  .tabbar{
+    position:fixed; bottom:0; left:0; right:0; z-index:15;
+    display:flex; justify-content:center;
+    background:var(--panel); border-top:1px solid var(--grid-line);
+    padding:4px max(6px, env(safe-area-inset-left)) max(4px, env(safe-area-inset-bottom));
+  }
+  .tabbar-inner{ display:flex; width:100%; max-width:420px; gap:4px; }
+  .tab-btn{
+    flex:1; background:none; border:none; color:var(--muted); font-family:inherit;
+    font-size:0.56rem; padding:6px 2px; border-radius:6px; display:flex; flex-direction:column;
+    align-items:center; gap:2px; cursor:pointer;
+  }
+  .tab-btn .ico{ font-size:1.05rem; }
+  .tab-btn.active{ color:var(--accent); background:var(--panel-alt); }
 
   .map-wrap{ display:flex; justify-content:center; margin-bottom:6px; }
   .map-grid{
@@ -99,11 +124,6 @@
 
   .section-label{ font-size:0.58rem; color:var(--muted); margin:6px 0 3px; }
 
-  .shop-toggle{
-    width:100%; text-align:left; background:var(--panel-alt); border:1px solid var(--grid-line);
-    border-radius:5px; padding:7px 10px; font-family:inherit; font-size:0.68rem; font-weight:600;
-    color:var(--text); cursor:pointer; margin-bottom:6px;
-  }
   .shop-row{ display:flex; flex-direction:column; gap:6px; margin-bottom:8px; }
   .shop-btn{
     background:var(--panel-alt); border:1px solid var(--grid-line); border-radius:4px; padding:8px 10px;
@@ -118,6 +138,13 @@
   }
   .tp-swatch:active{ transform:translateY(1px); }
 
+  .drop-color-row{ display:flex; flex-wrap:wrap; gap:6px; margin-bottom:8px; }
+  .color-drop-swatch{
+    width:34px; height:34px; border-radius:6px; border:none; cursor:pointer;
+    color:#fff; font-weight:700; font-size:0.68rem; display:flex; align-items:center; justify-content:center;
+  }
+  .color-drop-swatch:active{ transform:translateY(1px); }
+
   .key-grid{
     display:grid; grid-template-columns:repeat(5, 1fr); gap:6px; margin-bottom:10px; min-height:40px;
     max-height:280px; overflow-y:auto; padding-right:2px;
@@ -130,13 +157,8 @@
   }
   .key:active{ transform:scale(0.92); }
   .key.selected{ border-color:var(--text); box-shadow:0 0 0 2px var(--accent); }
-  .key.dropped{ box-shadow:0 0 0 2px var(--accent); }
   .key.shake, .slot.shake, .cat-btn.shake{ animation:shake 0.3s ease; }
   @keyframes shake{ 0%,100%{transform:translateX(0);} 25%{transform:translateX(-4px);} 75%{transform:translateX(4px);} }
-  .slot.pop{ animation:pop 0.35s ease; }
-  @keyframes pop{ 0%{ transform:scale(1); } 45%{ transform:scale(1.35); } 100%{ transform:scale(1); } }
-  .board-group.justdone{ animation:flashdone 0.6s ease; }
-  @keyframes flashdone{ 0%{ box-shadow:0 0 0 0 rgba(14,124,102,0.5);} 60%{ box-shadow:0 0 0 8px rgba(14,124,102,0.25);} 100%{ box-shadow:0 0 0 0 rgba(14,124,102,0);} }
 
   .toast{ font-size:0.65rem; color:var(--danger); text-align:center; min-height:14px; margin:-2px 0 8px; }
 
@@ -183,19 +205,21 @@
   .slot.filled{ border-style:solid; color:#fff; }
   .slot.locked{ opacity:0.35; }
 
-  .overlay{ position:fixed; inset:0; background:rgba(0,0,0,0.72); display:none; align-items:center; justify-content:center; padding:20px; z-index:10; }
+  .overlay{ position:fixed; inset:0; background:rgba(0,0,0,0.72); display:none; align-items:center; justify-content:center; padding:20px; z-index:20; }
   .overlay.show{ display:flex; }
   .card{ background:var(--panel); border-radius:6px; padding:24px 20px; max-width:320px; text-align:center; }
   .card h2{ color:var(--accent); margin:0 0 6px; }
   .card p{ font-size:0.72rem; color:var(--muted); margin:0 0 16px; line-height:1.6; }
 
-  .hidden{ display:none !important; }
+  .theme-row{ display:flex; gap:6px; margin-bottom:6px; }
+  .theme-btn{ flex:1; padding:9px 4px; border-radius:5px; border:1px solid var(--grid-line); background:var(--panel-alt); color:var(--text); font-family:inherit; font-size:0.64rem; cursor:pointer; }
+  .theme-btn.active{ background:var(--accent); color:#fff; }
 
   .ach-toast{
     position:fixed; top:14px; left:50%; transform:translateX(-50%) translateY(-20px);
     background:var(--accent); color:#fff; padding:10px 16px; border-radius:6px;
     font-size:0.72rem; font-weight:600; box-shadow:0 4px 14px rgba(0,0,0,0.3);
-    opacity:0; transition:opacity 0.25s ease, transform 0.25s ease; z-index:20; max-width:88%; text-align:center;
+    opacity:0; transition:opacity 0.25s ease, transform 0.25s ease; z-index:25; max-width:88%; text-align:center;
   }
   .ach-toast.show{ opacity:1; transform:translateX(-50%) translateY(0); }
 
@@ -208,18 +232,37 @@
   .ach-text b{ display:block; font-size:0.72rem; }
   .ach-text span{ font-size:0.6rem; color:var(--muted); }
   .ach-link{ background:none; border:none; color:var(--accent); font-family:inherit; font-size:0.66rem; text-decoration:underline; cursor:pointer; padding:6px 0; }
+
+  .hidden{ display:none !important; }
+
+  @media (min-width: 860px){
+    body{ padding:16px; }
+    .app{ max-width:960px; padding-bottom:20px; }
+    #screen-game{ padding-bottom:20px; }
+    .tabbar{ display:none; }
+    .game-layout{ display:grid; grid-template-columns:1fr 360px; gap:18px; align-items:start; }
+    .tab-panel{ display:block !important; }
+    .side-col{ display:flex; flex-direction:column; gap:14px; }
+    .side-col .panel-box{ background:var(--panel); border:1px solid var(--grid-line); border-radius:6px; padding:12px; }
+    .map-grid{ grid-template-columns:repeat(12, 30px); grid-template-rows:repeat(8, 30px); }
+    .tile{ width:30px; height:30px; font-size:0.74rem; }
+    .dpad{ grid-template-columns:repeat(3,48px); grid-template-rows:repeat(3,48px); }
+  }
 </style>
 </head>
 <body>
-<div class="app">
-  <h1>&#9000;&#65039; Clavier Perdu</h1>
+<div class="app" id="app-scroll">
+  <div class="topbar">
+    <h1>&#9000;&#65039; Clavier Perdu</h1>
+    <button class="gear-btn" id="settings-gear-btn" title="Réglages">&#9881;&#65039;</button>
+  </div>
 
   <div id="screen-mode">
     <div class="tagline">Chaque étagère cache un vrai clavier complet à reconstituer. Ta partie se sauvegarde automatiquement sur cet appareil.</div>
     <div class="mode-card">
       <button class="btn hidden" id="resume-btn" style="margin-bottom:10px;">Reprendre la partie sauvegardée</button>
       <button class="btn secondary" id="ach-open-btn-home" style="margin-bottom:10px;">🏆 Succès</button>
-      <p>10 étagères sur le pourtour, une par couleur. Les caches (25 touches max chacune) sont en damier au centre, avec de quoi circuler tout autour. Chaque touche placée rapporte 1$ : agrandis ton sac, ou débloque l'Aimant (ramassage automatique) et le Téléporteur (voyage instantané). Une fois les 10 claviers réparés, enchaîne une nouvelle manche sans perdre tes améliorations.</p>
+      <p>10 étagères sur le pourtour, une par couleur. Les caches (25 touches max chacune) sont en damier au centre. Chaque touche placée rapporte 1$ : agrandis ton sac, ou débloque l'Aimant, le Téléporteur et le Classement automatique. Une fois les 10 claviers réparés, enchaîne une nouvelle manche sans perdre tes améliorations.</p>
       <button class="mode-btn" id="btn-dependance">
         <b>Mode Dépendance</b>
         <span>Le clavier se répare en 2 blocs : Bloc A (chiffres &amp; symboles), Bloc B (lettres). B reste verrouillé tant que A n'est pas à moitié rempli.</span>
@@ -241,48 +284,86 @@
     </div>
     <div id="save-status" style="text-align:center;font-size:0.55rem;color:var(--danger);margin:-2px 0 4px;"></div>
 
-    <div id="view-map">
-      <div class="map-wrap"><div class="map-grid" id="map-grid"></div></div>
+    <div class="game-layout">
+      <div class="map-col">
+        <div id="tab-carte" class="tab-panel active">
+          <div class="map-wrap"><div class="map-grid" id="map-grid"></div></div>
+          <button class="btn" id="enter-btn">Rien à faire ici</button>
+          <div class="dpad">
+            <div class="empty"></div><button id="btn-up">&#9650;</button><div class="empty"></div>
+            <button id="btn-left">&#9664;</button><div class="empty"></div><button id="btn-right">&#9654;</button>
+            <div class="empty"></div><button id="btn-down">&#9660;</button><div class="empty"></div>
+          </div>
+          <div class="hint" id="map-hint">@ toi &middot; mosaïque = cache/tas &middot; case colorée = étagère</div>
 
-      <button class="shop-toggle" id="shop-toggle-btn">🛒 Boutique ▾</button>
-      <div id="shop-panel" class="hidden">
-        <div class="shop-row">
-          <button class="shop-btn" id="shop-upgrade-btn">Améliorer la capacité du sac (+1) — 10$</button>
-          <button class="shop-btn" id="shop-magnet-btn">Acheter l'Aimant (ramassage auto) — 150$</button>
-          <button class="shop-btn" id="shop-teleport-btn">Acheter le Téléporteur (voyage rapide) — 300$</button>
+          <div class="section-label">Ton sac (touche une touche pour la choisir ; sinon la plus ancienne est utilisée)</div>
+          <div class="tray-strip" id="map-tray"></div>
+          <div class="drop-buttons">
+            <button class="btn secondary" id="map-drop-btn">Déposer 1 touche</button>
+            <button class="btn secondary" id="map-drop-all-btn">Tout déposer</button>
+          </div>
+          <div class="toast" id="map-drop-toast"></div>
+          <div id="map-drop-color-wrap" class="hidden">
+            <div class="section-label">Déposer par couleur</div>
+            <div class="drop-color-row" id="map-drop-colors"></div>
+          </div>
         </div>
-        <div id="teleport-box" class="hidden">
-          <div class="section-label">Téléportation</div>
-          <div class="teleport-grid" id="teleport-grid"></div>
-          <button class="btn secondary" id="tp-nearest-btn" style="margin-bottom:10px;">Téléporter vers la cache la plus proche</button>
+      </div>
+
+      <div class="side-col">
+        <div id="tab-boutique" class="tab-panel">
+          <div class="panel-box">
+            <div class="section-label" style="margin-top:0;">Boutique</div>
+            <div class="shop-row">
+              <button class="shop-btn" id="shop-upgrade-btn">Améliorer la capacité du sac (+1) — 10$</button>
+              <button class="shop-btn" id="shop-magnet-btn">Acheter l'Aimant (ramassage à la demande) — 150$</button>
+              <button class="shop-btn" id="shop-teleport-btn">Acheter le Téléporteur (voyage rapide) — 300$</button>
+              <button class="shop-btn" id="shop-autosort-btn">Acheter le Classement automatique — 500$</button>
+            </div>
+            <div id="teleport-box" class="hidden">
+              <div class="section-label">Téléportation</div>
+              <div class="teleport-grid" id="teleport-grid"></div>
+              <button class="btn secondary" id="tp-nearest-btn">Téléporter vers la cache la plus proche</button>
+            </div>
+          </div>
+        </div>
+
+        <div id="tab-succes" class="tab-panel">
+          <div class="panel-box">
+            <div class="section-label" style="margin-top:0;">Succès</div>
+            <div id="ach-list-tab"></div>
+          </div>
         </div>
       </div>
+    </div>
 
-      <button class="ach-link" id="ach-open-btn-map">🏆 Succès</button>
-
-      <div class="tray-strip" id="map-tray"></div>
-      <div class="drop-buttons">
-        <button class="btn secondary" id="map-drop-btn">Déposer 1 touche</button>
-        <button class="btn secondary" id="map-drop-all-btn">Tout déposer</button>
+    <div class="tabbar" id="tabbar">
+      <div class="tabbar-inner">
+        <button class="tab-btn active" data-tab="carte"><span class="ico">🗺️</span><span>Carte &amp; Sac</span></button>
+        <button class="tab-btn" data-tab="boutique"><span class="ico">🛒</span><span>Boutique</span></button>
+        <button class="tab-btn" data-tab="succes"><span class="ico">🏆</span><span>Succès</span></button>
       </div>
-      <div class="toast" id="map-drop-toast"></div>
-
-      <button class="btn" id="enter-btn">Rien à faire ici</button>
-      <div class="dpad">
-        <div class="empty"></div><button id="btn-up">&#9650;</button><div class="empty"></div>
-        <button id="btn-left">&#9664;</button><div class="empty"></div><button id="btn-right">&#9654;</button>
-        <div class="empty"></div><button id="btn-down">&#9660;</button><div class="empty"></div>
-      </div>
-
-      <div class="hint" id="map-hint">@ toi &middot; mosaïque = cache/tas &middot; case colorée = étagère</div>
     </div>
 
     <div id="view-cache" class="panel hidden">
       <button class="btn secondary top-close" id="cache-close">Retour à la carte</button>
       <h2 id="cache-title">Cache</h2>
       <div class="section-label" id="cache-subtitle"></div>
+      <button class="btn secondary" id="cache-magnet-btn" style="margin-bottom:10px;">🧲 Tout ramasser (Aimant)</button>
       <div class="key-grid" id="cache-grid"></div>
       <div class="toast" id="cache-toast"></div>
+
+      <div class="section-label">Ton sac (touche une touche pour la choisir ; sinon la plus ancienne est utilisée)</div>
+      <div class="tray-strip" id="cache-tray"></div>
+      <div class="drop-buttons">
+        <button class="btn secondary" id="cache-drop-btn">Déposer 1 touche</button>
+        <button class="btn secondary" id="cache-drop-all-btn">Tout déposer</button>
+      </div>
+      <div class="toast" id="cache-drop-toast"></div>
+      <div id="cache-drop-color-wrap" class="hidden">
+        <div class="section-label">Déposer par couleur</div>
+        <div class="drop-color-row" id="cache-drop-colors"></div>
+      </div>
     </div>
 
     <div id="view-shelf" class="panel hidden">
@@ -295,6 +376,8 @@
         <div id="active-box"></div>
         <div class="cat-buttons" id="cat-buttons"></div>
       </div>
+      <button class="btn secondary" id="shelf-autosort-btn" style="margin-bottom:6px;">⌨️ Tout classer (Classement automatique)</button>
+      <div class="toast" id="shelf-autosort-toast"></div>
 
       <div class="section-label">Ton sac (touche une touche pour la choisir ; sinon la plus ancienne est utilisée)</div>
       <div class="tray-strip" id="shelf-tray"></div>
@@ -303,6 +386,10 @@
         <button class="btn secondary" id="shelf-drop-all-btn">Tout déposer</button>
       </div>
       <div class="toast" id="shelf-drop-toast"></div>
+      <div id="shelf-drop-color-wrap" class="hidden">
+        <div class="section-label">Déposer par couleur</div>
+        <div class="drop-color-row" id="shelf-drop-colors"></div>
+      </div>
       <div id="shelf-boards"></div>
     </div>
   </div>
@@ -325,11 +412,25 @@
   </div>
 </div>
 
+<div class="overlay" id="settings-overlay">
+  <div class="card" style="max-width:320px; text-align:left;">
+    <h2 style="text-align:center;">Réglages</h2>
+    <div class="section-label" style="margin-top:0;">Thème</div>
+    <div class="theme-row">
+      <button class="theme-btn" data-theme="system">Système</button>
+      <button class="theme-btn" data-theme="light">Clair</button>
+      <button class="theme-btn" data-theme="dark">Sombre</button>
+    </div>
+    <button class="btn" id="settings-close-btn" style="margin-top:14px;">Fermer</button>
+  </div>
+</div>
+
 <div class="ach-toast hidden" id="ach-toast"></div>
 
 <script>
 (function(){
-  const SAVE_KEY='clavierPerduSaveV5';
+  const SAVE_KEY='clavierPerduSaveV6';
+  const THEME_KEY='clavierPerduTheme';
   const COLORS=[
     {id:'rouge', label:'Rouge', hex:'#c0392b'},
     {id:'orange', label:'Orange', hex:'#c8641b'},
@@ -355,11 +456,24 @@
   const COLS=12, ROWS=8;
   const BASE_CAP=2, MAX_CAP=40;
   const PILE_MAX=25;
-  const MAGNET_COST=150, TELEPORT_COST=300;
+  const MAGNET_COST=150, TELEPORT_COST=300, AUTOSORT_COST=500;
 
   function colorOf(id){ return COLORS.find(c=>c.id===id); }
   function shuffle(arr){ for(let i=arr.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [arr[i],arr[j]]=[arr[j],arr[i]]; } return arr; }
 
+  // ---------- theme ----------
+  function loadTheme(){
+    try{ return localStorage.getItem(THEME_KEY) || 'system'; }catch(e){ return 'system'; }
+  }
+  function applyTheme(theme){
+    if(theme==='system') document.documentElement.removeAttribute('data-theme');
+    else document.documentElement.setAttribute('data-theme', theme);
+    try{ localStorage.setItem(THEME_KEY, theme); }catch(e){}
+    document.querySelectorAll('.theme-btn').forEach(b=>b.classList.toggle('active', b.dataset.theme===theme));
+  }
+  applyTheme(loadTheme());
+
+  // ---------- achievements (persist across resets) ----------
   const ACHIEVEMENTS=[
     {id:'premier_pas', cat:'Progression', label:'Premier pas', desc:'Compléter ton tout premier clavier'},
     {id:'collection_complete', cat:'Progression', label:'Collection complète', desc:'Terminer les 10 claviers d\u2019une manche'},
@@ -371,7 +485,6 @@
     {id:'tout_automatise', cat:'Économie', label:'Tout automatisé', desc:'Acheter l\u2019Aimant et le Téléporteur'}
   ];
   const ACH_KEY='clavierPerduAchievementsV1';
-
   function loadAchievements(){
     try{
       const raw=localStorage.getItem(ACH_KEY);
@@ -395,16 +508,15 @@
     clearTimeout(el._timer);
     el._timer=setTimeout(()=>{ el.classList.remove('show'); }, 2600);
   }
-
   function unlockAchievement(id){
     if(achievements.unlocked[id]) return;
     achievements.unlocked[id]=true;
     saveAchievements();
     showAchievementToast(id);
   }
-
-  function renderAchievements(){
-    const list=document.getElementById('ach-list');
+  function renderAchievementsInto(listId){
+    const list=document.getElementById(listId);
+    if(!list) return;
     list.innerHTML='';
     let currentCat=null;
     ACHIEVEMENTS.forEach(ach=>{
@@ -425,10 +537,11 @@
       list.appendChild(row);
     });
   }
-  function openAchievements(){ renderAchievements(); document.getElementById('ach-overlay').classList.add('show'); }
+  function openAchievements(){ renderAchievementsInto('ach-list'); document.getElementById('ach-overlay').classList.add('show'); }
   function closeAchievements(){ document.getElementById('ach-overlay').classList.remove('show'); }
 
   let state = null;
+  let currentTab = 'carte';
 
   function saveGame(){
     if(!state) return false;
@@ -521,12 +634,22 @@
   }
   function buyMagnet(){
     if(state.hasMagnet || state.money<MAGNET_COST) return;
-    state.money-=MAGNET_COST; state.hasMagnet=true;
+    state.money-=MAGNET_COST; state.hasMagnet=true; state.magnetActive=true;
+    renderAll();
+  }
+  function toggleMagnet(){
+    if(!state.hasMagnet) return;
+    state.magnetActive = !state.magnetActive;
     renderAll();
   }
   function buyTeleport(){
     if(state.hasTeleport || state.money<TELEPORT_COST) return;
     state.money-=TELEPORT_COST; state.hasTeleport=true;
+    renderAll();
+  }
+  function buyAutoSort(){
+    if(state.hasAutoSort || state.money<AUTOSORT_COST) return;
+    state.money-=AUTOSORT_COST; state.hasAutoSort=true;
     renderAll();
   }
 
@@ -591,7 +714,9 @@
       money: keep ? keep.money : 0,
       trayUpgrades: keep ? keep.trayUpgrades : 0,
       hasMagnet: keep ? keep.hasMagnet : false,
+      magnetActive: keep ? keep.magnetActive : false,
       hasTeleport: keep ? keep.hasTeleport : false,
+      hasAutoSort: keep ? keep.hasAutoSort : false,
       round: keep ? keep.round+1 : 1,
       panel:'map', activeShelf:null
     };
@@ -603,27 +728,22 @@
 
   function startGame(mode){
     state = freshRoundState(mode, null);
+    currentTab='carte';
     document.getElementById('screen-mode').classList.add('hidden');
     document.getElementById('screen-game').classList.remove('hidden');
     updateHudMode();
+    setTab('carte');
     renderAll();
   }
 
   function nextRound(){
-    const keep = { money:state.money, trayUpgrades:state.trayUpgrades, hasMagnet:state.hasMagnet, hasTeleport:state.hasTeleport, round:state.round||1 };
+    const keep = { money:state.money, trayUpgrades:state.trayUpgrades, hasMagnet:state.hasMagnet, magnetActive:state.magnetActive, hasTeleport:state.hasTeleport, hasAutoSort:state.hasAutoSort, round:state.round||1 };
     state = freshRoundState(state.mode, keep);
     document.getElementById('overlay').classList.remove('show');
     updateHudMode();
     renderAll();
   }
 
-  function trimPile(arr){
-    while(arr.length>PILE_MAX){
-      const idx = arr.findIndex(k=>k.taken);
-      if(idx===-1) break; // safety: never remove a real (untaken) key
-      arr.splice(idx,1);
-    }
-  }
   function sanitizePiles(){
     for(let y=0;y<ROWS;y++){
       for(let x=0;x<COLS;x++){
@@ -635,6 +755,13 @@
       const arr = state.groundPiles[k];
       if(arr && arr.length>PILE_MAX) trimPile(arr);
     });
+  }
+  function trimPile(arr){
+    while(arr.length>PILE_MAX){
+      const idx = arr.findIndex(k=>k.taken);
+      if(idx===-1) break;
+      arr.splice(idx,1);
+    }
   }
 
   function sanitizeKeyboards(){
@@ -656,15 +783,8 @@
     });
   }
 
-  // Repairs saves affected by the old shared-reference bug: the same physical
-  // key could end up sitting untaken in two places at once (its original pile
-  // and wherever it was later dropped). Keeps the first copy found, blanks any
-  // further copies out to an inert placeholder.
   function sanitizeDuplicateKeys(){
     const seen = new Set();
-    // Anything already legitimately placed in a keyboard "claims" that
-    // (color, char) — a matching key object still loose in the world is a
-    // leftover ghost from the old sharing bug and must be blanked out too.
     COLORS.forEach(c=>{
       const kb = state.keyboards[c.id];
       const digitsZone = state.mode==='dependance' ? kb.A.digits : kb.digits;
@@ -709,20 +829,30 @@
       if(typeof state.money!=='number') state.money=0;
       if(typeof state.trayUpgrades!=='number') state.trayUpgrades=0;
       if(typeof state.hasMagnet!=='boolean') state.hasMagnet=false;
+      if(typeof state.magnetActive!=='boolean') state.magnetActive=true;
       if(typeof state.hasTeleport!=='boolean') state.hasTeleport=false;
+      if(typeof state.hasAutoSort!=='boolean') state.hasAutoSort=false;
       if(typeof state.round!=='number') state.round=1;
       sanitizePiles();
       sanitizeKeyboards();
       sanitizeDuplicateKeys();
+      currentTab='carte';
       document.getElementById('screen-mode').classList.add('hidden');
       document.getElementById('screen-game').classList.remove('hidden');
       updateHudMode();
+      setTab('carte');
       renderAll();
     }catch(e){
       clearSave();
       document.getElementById('resume-btn').textContent = 'Sauvegarde illisible — nouvelle partie requise';
       document.getElementById('resume-btn').disabled = true;
     }
+  }
+
+  function setTab(tab){
+    currentTab = tab;
+    document.querySelectorAll('.tab-panel').forEach(p=>p.classList.toggle('active', p.id==='tab-'+tab));
+    document.querySelectorAll('.tab-btn').forEach(b=>b.classList.toggle('active', b.dataset.tab===tab));
   }
 
   function move(dx,dy){
@@ -750,12 +880,12 @@
   }
 
   function autoCollectIfMagnet(){
-    if(!state.hasMagnet) return;
+    if(!state.hasMagnet || !state.magnetActive) return;
     const info = currentPileInfo();
     if(!info.arr) return;
     info.arr.forEach((k,idx)=>{
       if(!k.taken && state.tray.length<getTrayCap()){
-        info.arr[idx] = {taken:true}; // inert placeholder: fully independent of the key now in the bag
+        info.arr[idx] = {taken:true};
         state.tray.push(k);
       }
     });
@@ -764,7 +894,7 @@
   function enterCurrentTile(){
     const info = currentEnterable();
     if(!info) return;
-    if(info.type==='cache'){ state.panel='cache'; autoCollectIfMagnet(); }
+    if(info.type==='cache'){ state.panel='cache'; }
     else if(info.type==='shelf'){ state.panel='shelf'; state.activeShelf=info.color; }
     renderAll();
   }
@@ -799,22 +929,25 @@
     if(!coord) return;
     state.player.x=coord.x; state.player.y=coord.y;
     state.panel='cache';
-    autoCollectIfMagnet();
     renderAll();
   }
 
   function renderAll(){
+    const appEl = document.getElementById('app-scroll');
+    const prevAppScroll = appEl ? appEl.scrollTop : 0;
     sanitizePiles();
     sanitizeKeyboards();
     sanitizeDuplicateKeys();
     renderHud();
-    document.getElementById('view-map').classList.toggle('hidden', state.panel!=='map');
     document.getElementById('view-cache').classList.toggle('hidden', state.panel!=='cache');
     document.getElementById('view-shelf').classList.toggle('hidden', state.panel!=='shelf');
+    document.querySelector('.game-layout').classList.toggle('hidden', state.panel!=='map');
+    document.getElementById('tabbar').classList.toggle('hidden', state.panel!=='map');
     if(state.panel==='map') renderMapPanel();
     if(state.panel==='cache') renderCache();
     if(state.panel==='shelf') renderShelf();
     saveGame();
+    if(appEl) appEl.scrollTop = prevAppScroll;
   }
 
   function renderHud(){
@@ -846,12 +979,8 @@
     el.scrollTop = prevScroll;
   }
 
-  function updateDropOneButton(btnId){
-    document.getElementById(btnId).disabled = state.tray.length===0;
-  }
-  function updateDropAllButton(btnId){
-    document.getElementById(btnId).disabled = state.tray.length===0;
-  }
+  function updateDropOneButton(btnId){ document.getElementById(btnId).disabled = state.tray.length===0; }
+  function updateDropAllButton(btnId){ document.getElementById(btnId).disabled = state.tray.length===0; }
 
   function getDropTargetArr(cell, coordKey){
     if(cell.type==='cache'){
@@ -862,11 +991,8 @@
     return state.groundPiles[coordKey];
   }
 
-  // Deposits a key into a pile, reusing an already-taken (collected) slot when
-  // possible so the pile never grows past PILE_MAX and every key stays visible
-  // in the fixed-size mosaic. Returns true if the key was placed.
   function depositKeyIntoPile(arr, key){
-    key.taken = false; // a key sitting in the bag is not "taken" from its new pile
+    key.taken = false;
     const reuseIdx = arr.findIndex(k=>k.taken);
     if(reuseIdx!==-1){ arr[reuseIdx]=key; return true; }
     if(arr.length<PILE_MAX){ arr.push(key); return true; }
@@ -874,13 +1000,13 @@
   }
 
   function showDropToast(msg){
-    const id = state.panel==='shelf' ? 'shelf-drop-toast' : 'map-drop-toast';
+    let id = 'map-drop-toast';
+    if(state.panel==='shelf') id='shelf-drop-toast';
+    else if(state.panel==='cache') id='cache-drop-toast';
     const el = document.getElementById(id);
     if(el) el.textContent = msg;
   }
 
-  // Drops the oldest key in the bag — no selection step needed, same "always
-  // act on the first matching item" pattern as the keyboard placement flow.
   function dropOne(){
     if(state.tray.length===0) return;
     showDropToast('');
@@ -907,7 +1033,7 @@
     const remaining=[];
     let placedCount=0;
     keysToDrop.forEach(key=>{
-      if(depositKeyIntoPile(arr, key)){ key.dropped=true; placedCount++; }
+      if(depositKeyIntoPile(arr, key)) placedCount++;
       else remaining.push(key);
     });
     state.tray = remaining;
@@ -915,6 +1041,50 @@
       showDropToast('Pile pleine : '+placedCount+' touche(s) déposée(s), '+remaining.length+' restée(s) dans le sac.');
     }
     renderAll();
+  }
+
+  function dropByColor(colorId){
+    const hasAny = state.tray.some(k=>k.color===colorId);
+    if(!hasAny) return;
+    showDropToast('');
+    const cell = state.grid[state.player.y][state.player.x];
+    const coordKey=state.player.x+','+state.player.y;
+    const arr = getDropTargetArr(cell, coordKey);
+    const remaining=[];
+    let placedCount=0;
+    state.tray.forEach(key=>{
+      if(key.color!==colorId){ remaining.push(key); return; }
+      if(depositKeyIntoPile(arr, key)) placedCount++;
+      else remaining.push(key);
+    });
+    state.tray = remaining;
+    if(state.selectedUid && !state.tray.find(k=>k.uid===state.selectedUid)) state.selectedUid=null;
+    const stillStuck = remaining.filter(k=>k.color===colorId).length;
+    if(stillStuck>0){
+      showDropToast('Pile pleine : '+placedCount+' touche(s) '+colorOf(colorId).label+' déposée(s), '+stillStuck+' restée(s) dans le sac.');
+    }
+    renderAll();
+  }
+
+  function renderDropColorRow(wrapId, rowId){
+    const wrap=document.getElementById(wrapId);
+    const row=document.getElementById(rowId);
+    row.innerHTML='';
+    const colorsPresent=[];
+    COLORS.forEach(c=>{
+      const count = state.tray.filter(k=>k.color===c.id).length;
+      if(count>0) colorsPresent.push({c, count});
+    });
+    wrap.classList.toggle('hidden', colorsPresent.length===0);
+    colorsPresent.forEach(({c,count})=>{
+      const btn=document.createElement('button');
+      btn.className='color-drop-swatch';
+      btn.style.background=c.hex;
+      btn.textContent = count>1 ? count : '';
+      btn.title = c.label;
+      btn.addEventListener('click', ()=>dropByColor(c.id));
+      row.appendChild(btn);
+    });
   }
 
   function renderShopButtons(){
@@ -930,11 +1100,15 @@
 
     const magnetBtn=document.getElementById('shop-magnet-btn');
     if(state.hasMagnet){
-      magnetBtn.textContent='Aimant acquis \u2713 (ramassage automatique actif)';
-      magnetBtn.disabled=true; magnetBtn.classList.add('owned');
+      magnetBtn.textContent = state.magnetActive
+        ? 'Aimant : Actif \u26A1 (touche pour désactiver)'
+        : 'Aimant : Inactif (touche pour activer)';
+      magnetBtn.disabled=false; magnetBtn.classList.toggle('owned', state.magnetActive);
+      magnetBtn.onclick = toggleMagnet;
     } else {
-      magnetBtn.textContent="Acheter l'Aimant (ramassage auto) — "+MAGNET_COST+'$';
+      magnetBtn.textContent="Acheter l'Aimant (ramassage à la demande) — "+MAGNET_COST+'$';
       magnetBtn.disabled = state.money<MAGNET_COST; magnetBtn.classList.remove('owned');
+      magnetBtn.onclick = buyMagnet;
     }
 
     const tpBtn=document.getElementById('shop-teleport-btn');
@@ -944,6 +1118,15 @@
     } else {
       tpBtn.textContent='Acheter le Téléporteur (voyage rapide) — '+TELEPORT_COST+'$';
       tpBtn.disabled = state.money<TELEPORT_COST; tpBtn.classList.remove('owned');
+    }
+
+    const asBtn=document.getElementById('shop-autosort-btn');
+    if(state.hasAutoSort){
+      asBtn.textContent='Classement automatique acquis \u2713';
+      asBtn.disabled=true; asBtn.classList.add('owned');
+    } else {
+      asBtn.textContent='Acheter le Classement automatique — '+AUTOSORT_COST+'$';
+      asBtn.disabled = state.money<AUTOSORT_COST; asBtn.classList.remove('owned');
     }
 
     const tpBox=document.getElementById('teleport-box');
@@ -963,23 +1146,18 @@
     }
   }
 
-  function toggleShop(){
-    const panel=document.getElementById('shop-panel');
-    const btn=document.getElementById('shop-toggle-btn');
-    panel.classList.toggle('hidden');
-    btn.textContent = panel.classList.contains('hidden') ? '🛒 Boutique ▾' : '🛒 Boutique ▴';
-  }
-
   function renderMapPanel(){
     renderMap();
     renderTrayInto('map-tray');
     updateDropOneButton('map-drop-btn');
     updateDropAllButton('map-drop-all-btn');
+    renderDropColorRow('map-drop-color-wrap','map-drop-colors');
     const info = currentEnterable();
     const btn = document.getElementById('enter-btn');
     btn.disabled = !info;
     btn.textContent = info ? info.label : 'Rien à faire ici';
     renderShopButtons();
+    renderAchievementsInto('ach-list-tab');
   }
 
   function buildMosaic(container, keysArr){
@@ -1031,6 +1209,10 @@
     const remaining = arr.filter(k=>!k.taken).length;
     document.getElementById('cache-title').textContent = (info.source==='ground' ? 'Touches déposées (' : 'Cache (') + remaining + ' restantes)';
     document.getElementById('cache-subtitle').textContent = '';
+    const magnetBtn=document.getElementById('cache-magnet-btn');
+    magnetBtn.classList.toggle('hidden', !state.hasMagnet);
+    magnetBtn.disabled = !state.magnetActive;
+    magnetBtn.textContent = state.magnetActive ? '🧲 Tout ramasser (Aimant)' : '🧲 Aimant désactivé (active-le dans la Boutique)';
     const grid = document.getElementById('cache-grid');
     const prevScroll = grid.scrollTop;
     grid.innerHTML='';
@@ -1047,6 +1229,11 @@
       grid.appendChild(d);
     });
     grid.scrollTop = prevScroll;
+
+    renderTrayInto('cache-tray');
+    updateDropOneButton('cache-drop-btn');
+    updateDropAllButton('cache-drop-all-btn');
+    renderDropColorRow('cache-drop-color-wrap','cache-drop-colors');
   }
 
   function collectKeyGeneric(key, info, el){
@@ -1056,9 +1243,15 @@
       return;
     }
     const idx = info.arr.indexOf(key);
-    if(idx!==-1) info.arr[idx] = {taken:true}; // inert placeholder: fully independent of the key now in the bag
+    if(idx!==-1) info.arr[idx] = {taken:true};
     state.tray.push(key);
     renderCache(); renderHud(); saveGame();
+  }
+
+  function manualMagnetCollect(){
+    if(!state.hasMagnet || !state.magnetActive) return;
+    autoCollectIfMagnet();
+    renderAll();
   }
 
   function renderShelfGroundPile(container, coordKey){
@@ -1139,11 +1332,11 @@
     if(zoneName==='digits' || zoneName==='specials'){
       const zone=getZone(colorId, zoneName);
       const slot=zone.find(s=>s.char===key.char && !s.filled);
-      if(!slot){ mistakeShake(btnEl); return; } // already filled or no matching slot: don't count as a success
+      if(!slot){ mistakeShake(btnEl); return; }
       slot.filled=true;
     } else {
       const zoneObj=getZone(colorId, zoneName);
-      if(zoneObj.collected.includes(key.char)){ mistakeShake(btnEl); return; } // already have this letter: don't duplicate
+      if(zoneObj.collected.includes(key.char)){ mistakeShake(btnEl); return; }
       zoneObj.collected.push(key.char);
     }
     afterPlaceCheckUnlock(colorId);
@@ -1157,7 +1350,37 @@
     renderHud(); checkWin(); saveGame();
   }
 
-  function renderFlatZoneDisplay(container, colorId, zoneName, justFilledChar){
+  function autoSortShelf(colorId){
+    if(!state.hasAutoSort) return;
+    const matching = state.tray.filter(k=>k.color===colorId);
+    if(matching.length===0) return;
+    let placed=0, rejected=0;
+    matching.forEach(key=>{
+      if(getLocked(colorId, key.type)){ rejected++; return; }
+      if(key.type==='digits' || key.type==='specials'){
+        const zone=getZone(colorId, key.type);
+        const slot=zone.find(s=>s.char===key.char && !s.filled);
+        if(!slot){ rejected++; return; }
+        slot.filled=true;
+      } else {
+        const zoneObj=getZone(colorId, key.type);
+        if(zoneObj.collected.includes(key.char)){ rejected++; return; }
+        zoneObj.collected.push(key.char);
+      }
+      state.tray = state.tray.filter(k=>k.uid!==key.uid);
+      if(state.selectedUid===key.uid) state.selectedUid=null;
+      state.totalPlaced++; state.score+=10; state.money+=1;
+      placed++;
+    });
+    afterPlaceCheckUnlock(colorId);
+    if(shelfDone(colorId)) unlockAchievement('premier_pas');
+    const toastEl=document.getElementById('shelf-autosort-toast');
+    if(placed===0 && rejected===0) toastEl.textContent='';
+    else toastEl.textContent = placed+' touche(s) classée(s)'+(rejected>0?(', '+rejected+' refusée(s) (verrouillé ou déjà rempli)'):'');
+    renderShelf(); renderHud(); checkWin(); saveGame();
+  }
+
+  function renderFlatZoneDisplay(container, colorId, zoneName){
     const zone = getZone(colorId, zoneName);
     const locked = getLocked(colorId, zoneName);
     const have = countFlat(zone);
@@ -1171,7 +1394,6 @@
       let cls='slot';
       if(slot.filled){ cls+=' filled'; s.style.background=colorOf(colorId).hex; }
       if(locked) cls+=' locked';
-      if(justFilledChar && slot.filled && slot.char===justFilledChar) cls+=' pop';
       s.className=cls;
       s.textContent = slot.filled ? slot.char : '';
       s.style.opacity = slot.filled ? '1' : (locked ? '0.35' : '0.55');
@@ -1180,7 +1402,7 @@
     container.appendChild(row);
   }
 
-  function renderLetterZoneDisplay(container, colorId, zoneName, justFilledChar){
+  function renderLetterZoneDisplay(container, colorId, zoneName){
     const zoneObj = getZone(colorId, zoneName);
     const locked = getLocked(colorId, zoneName);
     const sorted = zoneObj.collected.slice().sort();
@@ -1198,7 +1420,6 @@
         let cls='slot';
         if(ch){ cls+=' filled'; s.style.background=colorOf(colorId).hex; }
         if(locked) cls+=' locked';
-        if(justFilledChar && ch===justFilledChar) cls+=' pop';
         s.className=cls;
         s.textContent = ch || '';
         s.style.opacity = ch ? '1' : (locked ? '0.35' : '0.55');
@@ -1208,16 +1429,22 @@
     });
   }
 
-  function renderShelf(justFilledColor, justFilledZone){
+  function renderShelf(){
     const colorId = state.activeShelf;
     const c = colorOf(colorId);
     document.getElementById('shelf-title').innerHTML = '&Eacute;tag&egrave;re ' + c.label;
 
     renderActiveSection(colorId);
 
+    const asBtn=document.getElementById('shelf-autosort-btn');
+    asBtn.classList.toggle('hidden', !state.hasAutoSort);
+    asBtn.disabled = !state.tray.some(k=>k.color===colorId);
+    asBtn.onclick = ()=>autoSortShelf(colorId);
+
     renderTrayInto('shelf-tray');
     updateDropOneButton('shelf-drop-btn');
     updateDropAllButton('shelf-drop-all-btn');
+    renderDropColorRow('shelf-drop-color-wrap','shelf-drop-colors');
 
     const groundEl = document.getElementById('shelf-ground');
     groundEl.innerHTML='';
@@ -1225,7 +1452,6 @@
 
     const boards = document.getElementById('shelf-boards');
     boards.innerHTML='';
-    const justChar = (justFilledColor===colorId) ? true : false;
 
     if(state.mode==='dependance'){
       const kb=state.keyboards[colorId];
@@ -1237,7 +1463,6 @@
       groupA.appendChild(headA);
       const zA=document.createElement('div'); zA.className='zone'; renderFlatZoneDisplay(zA,colorId,'digits'); groupA.appendChild(zA);
       const zA2=document.createElement('div'); zA2.className='zone'; renderFlatZoneDisplay(zA2,colorId,'specials'); groupA.appendChild(zA2);
-      if(haveA>=20 && justChar) groupA.classList.add('justdone');
       boards.appendChild(groupA);
 
       const groupB=document.createElement('div');
@@ -1248,7 +1473,6 @@
       groupB.appendChild(headB);
       const zB=document.createElement('div'); zB.className='zone'; renderLetterZoneDisplay(zB,colorId,'upper'); groupB.appendChild(zB);
       const zB2=document.createElement('div'); zB2.className='zone'; renderLetterZoneDisplay(zB2,colorId,'lower'); groupB.appendChild(zB2);
-      if(haveB>=52 && justChar) groupB.classList.add('justdone');
       boards.appendChild(groupB);
     } else {
       const group=document.createElement('div'); group.className='board-group';
@@ -1256,7 +1480,6 @@
       const z2=document.createElement('div'); z2.className='zone'; renderFlatZoneDisplay(z2,colorId,'specials'); group.appendChild(z2);
       const z3=document.createElement('div'); z3.className='zone'; renderLetterZoneDisplay(z3,colorId,'upper'); group.appendChild(z3);
       const z4=document.createElement('div'); z4.className='zone'; renderLetterZoneDisplay(z4,colorId,'lower'); group.appendChild(z4);
-      if(shelfDone(colorId) && justChar) group.classList.add('justdone');
       boards.appendChild(group);
     }
   }
@@ -1282,28 +1505,42 @@
   document.getElementById('btn-souscla').addEventListener('click', ()=>startGame('souscla'));
   document.getElementById('resume-btn').addEventListener('click', resumeGame);
   document.getElementById('ach-open-btn-home').addEventListener('click', openAchievements);
-  document.getElementById('ach-open-btn-map').addEventListener('click', openAchievements);
   document.getElementById('ach-close-btn').addEventListener('click', closeAchievements);
   document.getElementById('btn-up').addEventListener('click', ()=>move(0,-1));
   document.getElementById('btn-down').addEventListener('click', ()=>move(0,1));
   document.getElementById('btn-left').addEventListener('click', ()=>move(-1,0));
   document.getElementById('btn-right').addEventListener('click', ()=>move(1,0));
   document.getElementById('enter-btn').addEventListener('click', enterCurrentTile);
-  document.getElementById('shop-toggle-btn').addEventListener('click', toggleShop);
   document.getElementById('cache-close').addEventListener('click', ()=>{ state.panel='map'; renderAll(); });
   document.getElementById('shelf-close').addEventListener('click', ()=>{ state.panel='map'; renderAll(); });
+  document.getElementById('cache-magnet-btn').addEventListener('click', manualMagnetCollect);
   document.getElementById('map-drop-btn').addEventListener('click', dropOne);
   document.getElementById('map-drop-all-btn').addEventListener('click', dropAll);
   document.getElementById('shelf-drop-btn').addEventListener('click', dropOne);
   document.getElementById('shelf-drop-all-btn').addEventListener('click', dropAll);
+  document.getElementById('cache-drop-btn').addEventListener('click', dropOne);
+  document.getElementById('cache-drop-all-btn').addEventListener('click', dropAll);
   document.getElementById('shop-upgrade-btn').addEventListener('click', buyTrayUpgrade);
-  document.getElementById('shop-magnet-btn').addEventListener('click', buyMagnet);
   document.getElementById('shop-teleport-btn').addEventListener('click', buyTeleport);
+  document.getElementById('shop-autosort-btn').addEventListener('click', buyAutoSort);
   document.getElementById('next-round-btn').addEventListener('click', nextRound);
   document.getElementById('restart').addEventListener('click', ()=>{
     document.getElementById('overlay').classList.remove('show');
     document.getElementById('screen-game').classList.add('hidden');
     document.getElementById('screen-mode').classList.remove('hidden');
+  });
+  document.querySelectorAll('.tab-btn').forEach(btn=>{
+    btn.addEventListener('click', ()=>setTab(btn.dataset.tab));
+  });
+  document.getElementById('settings-gear-btn').addEventListener('click', ()=>{
+    document.querySelectorAll('.theme-btn').forEach(b=>b.classList.toggle('active', b.dataset.theme===loadTheme()));
+    document.getElementById('settings-overlay').classList.add('show');
+  });
+  document.getElementById('settings-close-btn').addEventListener('click', ()=>{
+    document.getElementById('settings-overlay').classList.remove('show');
+  });
+  document.querySelectorAll('.theme-btn').forEach(btn=>{
+    btn.addEventListener('click', ()=>applyTheme(btn.dataset.theme));
   });
   window.addEventListener('keydown', (e)=>{
     if(!state) return;
@@ -1313,6 +1550,7 @@
     if(e.key==='ArrowRight') move(1,0);
     if(e.key==='Enter') enterCurrentTile();
   });
-})();</script>
+})();
+</script>
 </body>
 </html>
