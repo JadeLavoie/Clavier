@@ -63,6 +63,16 @@
   .mode-btn span{ font-size:0.68rem; color:var(--muted); line-height:1.5; }
   .mode-btn:active{ transform:translateY(1px); }
 
+  .gtheme-row{ display:flex; gap:8px; margin-bottom:12px; }
+  .gtheme-btn{
+    flex:1; padding:12px 6px; border-radius:6px; border:1px solid var(--grid-line);
+    background:var(--panel-alt); color:var(--text); font-family:inherit; cursor:pointer; text-align:center;
+  }
+  .gtheme-btn b{ display:block; font-size:0.86rem; margin-bottom:2px; }
+  .gtheme-btn span{ font-size:0.6rem; color:var(--muted); line-height:1.4; }
+  .gtheme-btn.active{ background:var(--accent); border-color:var(--accent); color:#fff; }
+  .gtheme-btn.active span{ color:rgba(255,255,255,0.85); }
+
   .hud{ display:grid; grid-template-columns:repeat(5,1fr); gap:4px; margin-bottom:4px; }
   .hud div{ background:var(--panel); border:1px solid var(--grid-line); border-radius:4px; padding:2px 3px; text-align:center; font-size:0.5rem; color:var(--muted); }
   .hud b{ display:block; font-size:0.66rem; color:var(--text); }
@@ -269,14 +279,18 @@
     <div class="mode-card">
       <button class="btn hidden" id="resume-btn" style="margin-bottom:10px;">Reprendre la partie sauvegardée</button>
       <button class="btn secondary" id="ach-open-btn-home" style="margin-bottom:10px;">🏆 Succès</button>
-      <p>10 étagères sur le pourtour, une par couleur. Les caches (25 touches max chacune) sont en damier au centre. Chaque touche placée rapporte 1$ : agrandis ton sac, ou débloque l'Aimant, le Téléporteur et le Classement automatique. Une fois les 10 claviers réparés, enchaîne une nouvelle manche sans perdre tes améliorations.</p>
+      <p>10 étagères sur le pourtour, une par couleur. Les caches (25 objets max chacune) sont en damier au centre. Chaque objet placé rapporte 1$ : agrandis ton sac, ou débloque l'Aimant, le Téléporteur et le Classement automatique. Une fois les 10 étagères réparées, enchaîne une nouvelle manche sans perdre tes améliorations. Choisis un thème pour cette manche :</p>
+      <div class="gtheme-row" id="gtheme-row">
+        <button class="gtheme-btn active" data-gtheme="clavier"><b>&#9000;&#65039; Clavier</b><span>Chiffres, symboles, lettres</span></button>
+        <button class="gtheme-btn" data-gtheme="crayons"><b>&#9999;&#65039; Crayons</b><span>Bois, couleur, feutres, stylos</span></button>
+      </div>
       <button class="mode-btn" id="btn-dependance">
         <b>Mode Dépendance</b>
-        <span>Le clavier se répare en 2 blocs : Bloc A (chiffres &amp; symboles), Bloc B (lettres). B reste verrouillé tant que A n'est pas à moitié rempli.</span>
+        <span>L'étagère se répare en 2 blocs : Bloc A, puis Bloc B. B reste verrouillé tant que A n'est pas à moitié rempli.</span>
       </button>
       <button class="mode-btn" id="btn-souscla">
-        <b>Mode Sous-claviers</b>
-        <span>Les 4 catégories du clavier sont ouvertes dès le départ.</span>
+        <b>Mode Sous-catégories</b>
+        <span>Les 4 catégories du thème choisi sont ouvertes dès le départ.</span>
       </button>
     </div>
   </div>
@@ -441,7 +455,7 @@
 
 <script>
 (function(){
-  const SAVE_KEY='clavierPerduSaveV6';
+  const SAVE_KEY='clavierPerduSaveV7';
   const THEME_KEY='clavierPerduTheme';
   const COLORS=[
     {id:'rouge', label:'Rouge', hex:'#c0392b'},
@@ -456,14 +470,49 @@
     {id:'marron', label:'Marron', hex:'#7a5230'},
   ];
 
-  const LAYOUT = {
-    digits: ['1','2','3','4','5','6','7','8','9','0'],
-    specials: ['!','@','#','$','%','^','&','*','(',')'],
-    upperLetters: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split(''),
-    lowerLetters: 'abcdefghijklmnopqrstuvwxyz'.split('')
-  };
   const ROW_SIZES=[10,10,6];
-  const ZONE_LABEL={digits:'Chiffres', specials:'Symboles', upper:'MAJUSCULES', lower:'minuscules'};
+
+  const GAME_THEMES = {
+    clavier: {
+      id:'clavier', label:'Clavier', icon:'⌨️',
+      unit:'touche', unitPlural:'touches', noneArticle:'Aucune',
+      zones:['digits','specials','upper','lower'],
+      zoneKind:{digits:'flat', specials:'flat', upper:'letter', lower:'letter'},
+      zoneLabel:{digits:'Chiffres', specials:'Symboles', upper:'MAJUSCULES', lower:'minuscules'},
+      zoneItems:{
+        digits:['1','2','3','4','5','6','7','8','9','0'],
+        specials:['!','@','#','$','%','^','&','*','(',')'],
+        upper:'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split(''),
+        lower:'abcdefghijklmnopqrstuvwxyz'.split('')
+      },
+      depBlocks:{A:['digits','specials'], B:['upper','lower']},
+      depLabelA:'chiffres & symboles', depLabelB:'lettres'
+    },
+    crayons: {
+      id:'crayons', label:'Crayons', icon:'✏️',
+      unit:'crayon', unitPlural:'crayons', noneArticle:'Aucun',
+      zones:['bois','couleur','feutres','stylos'],
+      zoneKind:{bois:'flat', couleur:'flat', feutres:'flat', stylos:'flat'},
+      zoneLabel:{bois:'Bois', couleur:'Couleur', feutres:'Feutres', stylos:'Stylos'},
+      zoneItems:{
+        bois:['8H','7H','6H','5H','4H','3H','2H','H','F','HB','B','2B','3B','4B','5B','6B','7B','8B'],
+        couleur:['T1','T2','T3','T4','T5','T6','T7','T8','T9','T10','T11','T12','T13','T14','T15','T16','T17','T18'],
+        feutres:['F1','F2','F3','F4','F5','F6','F7','F8','F9','F10','F11','F12','F13','F14','F15','F16','F17','F18'],
+        stylos:['S1','S2','S3','S4','S5','S6','S7','S8','S9','S10','S11','S12','S13','S14','S15','S16','S17','S18']
+      },
+      depBlocks:{A:['bois','couleur'], B:['feutres','stylos']},
+      depLabelA:'bois & couleur', depLabelB:'feutres & stylos'
+    }
+  };
+  function themeDef(themeId){ return GAME_THEMES[themeId || (state && state.theme) || 'clavier']; }
+  function zoneSize(td, zoneName){ return td.zoneItems[zoneName].length; }
+  function blockZones(td, block){ return td.depBlocks[block]; }
+  function blockCapacity(td, block){ return blockZones(td,block).reduce((s,z)=>s+zoneSize(td,z),0); }
+  function whichBlock(td, zoneName){
+    if(td.depBlocks.A.includes(zoneName)) return 'A';
+    if(td.depBlocks.B.includes(zoneName)) return 'B';
+    return null;
+  }
 
   const COLS=12, ROWS=8;
   const BASE_CAP=2, MAX_CAP=40;
@@ -600,19 +649,18 @@
   }
   function clearSave(){ try{ localStorage.removeItem(SAVE_KEY); }catch(e){} }
 
-  function fullCharList(){
+  function fullCharList(themeId){
+    const td = themeDef(themeId);
     const list=[];
-    LAYOUT.digits.forEach(ch=>list.push({type:'digits',char:ch}));
-    LAYOUT.specials.forEach(ch=>list.push({type:'specials',char:ch}));
-    LAYOUT.upperLetters.forEach(ch=>list.push({type:'upper',char:ch}));
-    LAYOUT.lowerLetters.forEach(ch=>list.push({type:'lower',char:ch}));
+    td.zones.forEach(z=>{ td.zoneItems[z].forEach(ch=>list.push({type:z, char:ch})); });
     return list; // 72
   }
 
-  function buildPool(){
+  function buildPool(themeId){
     const pool=[];
+    const list = fullCharList(themeId);
     COLORS.forEach(c=>{
-      fullCharList().forEach(item=>{
+      list.forEach(item=>{
         pool.push({ uid:Math.random().toString(36).slice(2,9), color:c.id, type:item.type, char:item.char });
       });
     });
@@ -621,17 +669,20 @@
 
   function makeZoneFlat(chars){ return chars.map(ch=>({char:ch, filled:false})); }
 
-  function buildKeyboards(mode){
+  function buildKeyboards(mode, themeId){
+    const td = themeDef(themeId);
     const kb={};
     COLORS.forEach(c=>{
-      const digits=makeZoneFlat(LAYOUT.digits);
-      const specials=makeZoneFlat(LAYOUT.specials);
-      const upper={collected:[]};
-      const lower={collected:[]};
+      const zonesObj={};
+      td.zones.forEach(z=>{
+        zonesObj[z] = td.zoneKind[z]==='letter' ? {collected:[]} : makeZoneFlat(td.zoneItems[z]);
+      });
       if(mode==='dependance'){
-        kb[c.id] = { A:{ locked:false, digits, specials }, B:{ locked:true, upper, lower } };
+        const A={locked:false}; td.depBlocks.A.forEach(z=>{ A[z]=zonesObj[z]; });
+        const B={locked:true}; td.depBlocks.B.forEach(z=>{ B[z]=zonesObj[z]; });
+        kb[c.id] = { A, B };
       } else {
-        kb[c.id] = { digits, specials, upper, lower };
+        kb[c.id] = zonesObj;
       }
     });
     return kb;
@@ -642,30 +693,37 @@
   function getZone(colorId, zoneName){
     const kb=state.keyboards[colorId];
     if(state.mode==='dependance'){
-      return (zoneName==='digits'||zoneName==='specials') ? kb.A[zoneName] : kb.B[zoneName];
+      const block = whichBlock(themeDef(), zoneName);
+      return kb[block][zoneName];
     }
     return kb[zoneName];
   }
   function getLocked(colorId, zoneName){
     if(state.mode!=='dependance') return false;
     const kb=state.keyboards[colorId];
-    return (zoneName==='digits'||zoneName==='specials') ? kb.A.locked : kb.B.locked;
+    const block = whichBlock(themeDef(), zoneName);
+    return kb[block].locked;
+  }
+  function zoneCount(td, colorId, zoneName){
+    const zoneObj = getZone(colorId, zoneName);
+    return td.zoneKind[zoneName]==='letter' ? zoneObj.collected.length : countFlat(zoneObj);
   }
   function afterPlaceCheckUnlock(colorId){
     if(state.mode!=='dependance') return;
     const kb=state.keyboards[colorId];
     if(kb.B.locked){
-      const haveA = countFlat(kb.A.digits)+countFlat(kb.A.specials);
-      if(haveA>=10) kb.B.locked=false;
+      const td=themeDef();
+      let haveA=0;
+      td.depBlocks.A.forEach(z=>{ haveA += zoneCount(td, colorId, z); });
+      if(haveA>=Math.floor(blockCapacity(td,'A')/2)) kb.B.locked=false;
     }
   }
 
   function shelfDone(colorId){
-    const kb=state.keyboards[colorId];
-    if(state.mode==='dependance'){
-      return countFlat(kb.A.digits)+countFlat(kb.A.specials)>=20 && kb.B.upper.collected.length+kb.B.lower.collected.length>=52;
-    }
-    return countFlat(kb.digits)>=10 && countFlat(kb.specials)>=10 && kb.upper.collected.length>=26 && kb.lower.collected.length>=26;
+    const td=themeDef();
+    let have=0, total=0;
+    td.zones.forEach(z=>{ have+=zoneCount(td,colorId,z); total+=zoneSize(td,z); });
+    return have>=total;
   }
 
   function getTrayCap(){
@@ -749,13 +807,14 @@
     return {grid, start};
   }
 
-  function freshRoundState(mode, keep){
-    const pool = buildPool();
+  function freshRoundState(mode, keep, themeId){
+    const theme = themeId || 'clavier';
+    const pool = buildPool(theme);
     const {grid, start} = generateMap(pool);
     return {
-      mode, grid, player:{x:start.x,y:start.y},
+      mode, theme, grid, player:{x:start.x,y:start.y},
       tray:[], selectedUid:null,
-      keyboards: buildKeyboards(mode),
+      keyboards: buildKeyboards(mode, theme),
       groundPiles: {},
       totalPlaced:0, score:0, mistakes:0,
       money: keep ? keep.money : 0,
@@ -770,11 +829,20 @@
   }
 
   function updateHudMode(){
-    document.getElementById('hud-mode').textContent = (state.mode==='dependance' ? 'Dépend.' : 'Sous-cla') + ' R' + (state.round||1);
+    const td=themeDef();
+    document.getElementById('hud-mode').textContent = td.icon + ' ' + (state.mode==='dependance' ? 'Dépend.' : 'Sous-cla') + ' R' + (state.round||1);
+  }
+
+  let pendingTheme = 'clavier';
+  let pendingKeep = null;
+
+  function syncThemeButtons(){
+    document.querySelectorAll('.gtheme-btn').forEach(b=>b.classList.toggle('active', b.dataset.gtheme===pendingTheme));
   }
 
   function startGame(mode){
-    state = freshRoundState(mode, null);
+    state = freshRoundState(mode, pendingKeep, pendingTheme);
+    pendingKeep = null;
     currentTab='carte';
     document.getElementById('screen-mode').classList.add('hidden');
     document.getElementById('screen-game').classList.remove('hidden');
@@ -784,11 +852,13 @@
   }
 
   function nextRound(){
-    const keep = { money:state.money, trayUpgrades:state.trayUpgrades, hasMagnet:state.hasMagnet, magnetActive:state.magnetActive, hasTeleport:state.hasTeleport, hasAutoSort:state.hasAutoSort, round:state.round||1 };
-    state = freshRoundState(state.mode, keep);
+    pendingKeep = { money:state.money, trayUpgrades:state.trayUpgrades, hasMagnet:state.hasMagnet, magnetActive:state.magnetActive, hasTeleport:state.hasTeleport, hasAutoSort:state.hasAutoSort, round:state.round||1 };
+    pendingTheme = state.theme || 'clavier';
     document.getElementById('overlay').classList.remove('show');
-    updateHudMode();
-    renderAll();
+    document.getElementById('screen-game').classList.add('hidden');
+    document.getElementById('screen-mode').classList.remove('hidden');
+    document.getElementById('resume-btn').classList.add('hidden');
+    syncThemeButtons();
   }
 
   function sanitizePiles(){
@@ -812,10 +882,10 @@
   }
 
   function sanitizeKeyboards(){
+    const td=themeDef();
     COLORS.forEach(c=>{
-      const kb = state.keyboards[c.id];
-      const groups = state.mode==='dependance' ? [kb.B.upper, kb.B.lower] : [kb.upper, kb.lower];
-      groups.forEach(zoneObj=>{
+      td.zones.filter(z=>td.zoneKind[z]==='letter').forEach(z=>{
+        const zoneObj = getZone(c.id, z);
         const seen = new Set();
         const deduped = [];
         let removed = 0;
@@ -832,16 +902,16 @@
 
   function sanitizeDuplicateKeys(){
     const seen = new Set();
+    const td=themeDef();
     COLORS.forEach(c=>{
-      const kb = state.keyboards[c.id];
-      const digitsZone = state.mode==='dependance' ? kb.A.digits : kb.digits;
-      const specialsZone = state.mode==='dependance' ? kb.A.specials : kb.specials;
-      digitsZone.forEach(s=>{ if(s.filled) seen.add(c.id+'|'+s.char); });
-      specialsZone.forEach(s=>{ if(s.filled) seen.add(c.id+'|'+s.char); });
-      const upperZone = state.mode==='dependance' ? kb.B.upper : kb.upper;
-      const lowerZone = state.mode==='dependance' ? kb.B.lower : kb.lower;
-      upperZone.collected.forEach(ch=>seen.add(c.id+'|'+ch));
-      lowerZone.collected.forEach(ch=>seen.add(c.id+'|'+ch));
+      td.zones.forEach(z=>{
+        const zoneObj = getZone(c.id, z);
+        if(td.zoneKind[z]==='letter'){
+          zoneObj.collected.forEach(ch=>seen.add(c.id+'|'+ch));
+        } else {
+          zoneObj.forEach(s=>{ if(s.filled) seen.add(c.id+'|'+s.char); });
+        }
+      });
     });
     function scan(arr){
       for(let i=0;i<arr.length;i++){
@@ -873,6 +943,7 @@
     if(!saved) return;
     try{
       state = saved;
+      if(typeof state.theme!=='string' || !GAME_THEMES[state.theme]) state.theme='clavier';
       if(typeof state.money!=='number') state.money=0;
       if(typeof state.trayUpgrades!=='number') state.trayUpgrades=0;
       if(typeof state.hasMagnet!=='boolean') state.hasMagnet=false;
@@ -1347,10 +1418,11 @@
     const cats=document.getElementById('cat-buttons');
     box.innerHTML=''; cats.innerHTML='';
     const key = getActiveKeyForShelf(colorId);
+    const td = themeDef();
     if(!key){
       const empty=document.createElement('div');
       empty.className='active-empty';
-      empty.textContent='Aucune touche ' + colorOf(colorId).label.toLowerCase() + ' dans ton sac pour le moment.';
+      empty.textContent=td.noneArticle + ' ' + td.unit + ' ' + colorOf(colorId).label.toLowerCase() + ' dans ton sac pour le moment.';
       box.appendChild(empty);
     } else {
       const sw=document.createElement('div');
@@ -1359,11 +1431,11 @@
       sw.textContent=key.char;
       box.appendChild(sw);
     }
-    ['digits','specials','upper','lower'].forEach(z=>{
+    td.zones.forEach(z=>{
       const btn=document.createElement('button');
       btn.className='cat-btn';
       const locked=getLocked(colorId,z);
-      btn.textContent = ZONE_LABEL[z] + (locked ? ' \uD83D\uDD12' : '');
+      btn.textContent = td.zoneLabel[z] + (locked ? ' \uD83D\uDD12' : '');
       btn.disabled = !key || locked;
       btn.addEventListener('click', ()=>attemptPlaceActive(colorId, z, btn));
       cats.appendChild(btn);
@@ -1376,7 +1448,8 @@
     if(getLocked(colorId, zoneName)){ mistakeShake(btnEl); return; }
     if(key.type!==zoneName){ mistakeShake(btnEl); return; }
 
-    if(zoneName==='digits' || zoneName==='specials'){
+    const td = themeDef();
+    if(td.zoneKind[zoneName]==='flat'){
       const zone=getZone(colorId, zoneName);
       const slot=zone.find(s=>s.char===key.char && !s.filled);
       if(!slot){ mistakeShake(btnEl); return; }
@@ -1402,9 +1475,10 @@
     const matching = state.tray.filter(k=>k.color===colorId);
     if(matching.length===0) return;
     let placed=0, rejected=0;
+    const td=themeDef();
     matching.forEach(key=>{
       if(getLocked(colorId, key.type)){ rejected++; return; }
-      if(key.type==='digits' || key.type==='specials'){
+      if(td.zoneKind[key.type]==='flat'){
         const zone=getZone(colorId, key.type);
         const slot=zone.find(s=>s.char===key.char && !s.filled);
         if(!slot){ rejected++; return; }
@@ -1423,7 +1497,7 @@
     if(shelfDone(colorId)) unlockAchievement('premier_pas');
     const toastEl=document.getElementById('shelf-autosort-toast');
     if(placed===0 && rejected===0) toastEl.textContent='';
-    else toastEl.textContent = placed+' touche(s) classée(s)'+(rejected>0?(', '+rejected+' refusée(s) (verrouillé ou déjà rempli)'):'');
+    else toastEl.textContent = placed+' '+td.unit+'(s) classé(e)(s)'+(rejected>0?(', '+rejected+' refusé(e)(s) (verrouillé ou déjà rempli)'):'');
     renderShelf(); renderHud(); checkWin(); saveGame();
   }
 
@@ -1433,7 +1507,7 @@
     const have = countFlat(zone);
     const label=document.createElement('div');
     label.className='zone-label';
-    label.textContent = ZONE_LABEL[zoneName] + ' (' + have + '/' + zone.length + ')';
+    label.textContent = themeDef().zoneLabel[zoneName] + ' (' + have + '/' + zone.length + ')';
     container.appendChild(label);
     const row=document.createElement('div'); row.className='kb-row';
     zone.forEach(slot=>{
@@ -1454,9 +1528,10 @@
     const locked = getLocked(colorId, zoneName);
     const sorted = zoneObj.collected.slice().sort();
     const have = sorted.length;
+    const td = themeDef();
     const label=document.createElement('div');
     label.className='zone-label';
-    label.textContent = ZONE_LABEL[zoneName] + ' (' + have + '/26)';
+    label.textContent = td.zoneLabel[zoneName] + ' (' + have + '/' + zoneSize(td,zoneName) + ')';
     container.appendChild(label);
     let idx=0;
     ROW_SIZES.forEach(size=>{
@@ -1476,9 +1551,16 @@
     });
   }
 
+  function renderZoneAny(container, colorId, zoneName){
+    const td=themeDef();
+    if(td.zoneKind[zoneName]==='letter') renderLetterZoneDisplay(container, colorId, zoneName);
+    else renderFlatZoneDisplay(container, colorId, zoneName);
+  }
+
   function renderShelf(){
     const colorId = state.activeShelf;
     const c = colorOf(colorId);
+    const td = themeDef();
     document.getElementById('shelf-title').innerHTML = '&Eacute;tag&egrave;re ' + c.label;
 
     renderActiveSection(colorId);
@@ -1505,28 +1587,31 @@
       const groupA=document.createElement('div');
       groupA.className='board-group'+(kb.A.locked?' locked':'');
       const headA=document.createElement('div'); headA.className='group-head';
-      const haveA=countFlat(kb.A.digits)+countFlat(kb.A.specials);
-      headA.innerHTML='<span>Bloc A — chiffres &amp; symboles</span><span>'+haveA+'/20'+(kb.A.locked?' &#128274;':'')+'</span>';
+      let haveA=0; td.depBlocks.A.forEach(z=>{ haveA+=zoneCount(td,colorId,z); });
+      const capA=blockCapacity(td,'A');
+      headA.innerHTML='<span>Bloc A — '+td.depLabelA+'</span><span>'+haveA+'/'+capA+(kb.A.locked?' &#128274;':'')+'</span>';
       groupA.appendChild(headA);
-      const zA=document.createElement('div'); zA.className='zone'; renderFlatZoneDisplay(zA,colorId,'digits'); groupA.appendChild(zA);
-      const zA2=document.createElement('div'); zA2.className='zone'; renderFlatZoneDisplay(zA2,colorId,'specials'); groupA.appendChild(zA2);
+      td.depBlocks.A.forEach(z=>{
+        const zEl=document.createElement('div'); zEl.className='zone'; renderZoneAny(zEl,colorId,z); groupA.appendChild(zEl);
+      });
       boards.appendChild(groupA);
 
       const groupB=document.createElement('div');
       groupB.className='board-group'+(kb.B.locked?' locked':'');
       const headB=document.createElement('div'); headB.className='group-head';
-      const haveB=kb.B.upper.collected.length+kb.B.lower.collected.length;
-      headB.innerHTML='<span>Bloc B — lettres</span><span>'+haveB+'/52'+(kb.B.locked?' &#128274;':'')+'</span>';
+      let haveB=0; td.depBlocks.B.forEach(z=>{ haveB+=zoneCount(td,colorId,z); });
+      const capB=blockCapacity(td,'B');
+      headB.innerHTML='<span>Bloc B — '+td.depLabelB+'</span><span>'+haveB+'/'+capB+(kb.B.locked?' &#128274;':'')+'</span>';
       groupB.appendChild(headB);
-      const zB=document.createElement('div'); zB.className='zone'; renderLetterZoneDisplay(zB,colorId,'upper'); groupB.appendChild(zB);
-      const zB2=document.createElement('div'); zB2.className='zone'; renderLetterZoneDisplay(zB2,colorId,'lower'); groupB.appendChild(zB2);
+      td.depBlocks.B.forEach(z=>{
+        const zEl=document.createElement('div'); zEl.className='zone'; renderZoneAny(zEl,colorId,z); groupB.appendChild(zEl);
+      });
       boards.appendChild(groupB);
     } else {
       const group=document.createElement('div'); group.className='board-group';
-      const z1=document.createElement('div'); z1.className='zone'; renderFlatZoneDisplay(z1,colorId,'digits'); group.appendChild(z1);
-      const z2=document.createElement('div'); z2.className='zone'; renderFlatZoneDisplay(z2,colorId,'specials'); group.appendChild(z2);
-      const z3=document.createElement('div'); z3.className='zone'; renderLetterZoneDisplay(z3,colorId,'upper'); group.appendChild(z3);
-      const z4=document.createElement('div'); z4.className='zone'; renderLetterZoneDisplay(z4,colorId,'lower'); group.appendChild(z4);
+      td.zones.forEach(z=>{
+        const zEl=document.createElement('div'); zEl.className='zone'; renderZoneAny(zEl,colorId,z); group.appendChild(zEl);
+      });
       boards.appendChild(group);
     }
   }
@@ -1548,6 +1633,12 @@
   const existingSave = loadSavedGame();
   if(existingSave) document.getElementById('resume-btn').classList.remove('hidden');
 
+  document.querySelectorAll('.gtheme-btn').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      pendingTheme = btn.dataset.gtheme;
+      syncThemeButtons();
+    });
+  });
   document.getElementById('btn-dependance').addEventListener('click', ()=>startGame('dependance'));
   document.getElementById('btn-souscla').addEventListener('click', ()=>startGame('souscla'));
   document.getElementById('resume-btn').addEventListener('click', resumeGame);
@@ -1572,6 +1663,9 @@
   document.getElementById('shop-autosort-btn').addEventListener('click', buyAutoSort);
   document.getElementById('next-round-btn').addEventListener('click', nextRound);
   document.getElementById('restart').addEventListener('click', ()=>{
+    pendingKeep = null;
+    pendingTheme = 'clavier';
+    syncThemeButtons();
     document.getElementById('overlay').classList.remove('show');
     document.getElementById('screen-game').classList.add('hidden');
     document.getElementById('screen-mode').classList.remove('hidden');
