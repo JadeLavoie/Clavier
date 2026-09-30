@@ -98,11 +98,23 @@
   .tab-btn .ico{ font-size:1.05rem; }
   .tab-btn.active{ color:var(--accent); background:var(--panel-alt); }
 
-  .map-wrap{ display:flex; justify-content:center; margin-bottom:6px; }
+  .map-wrap{
+    display:flex; justify-content:center; margin-bottom:6px;
+    overflow:auto; touch-action:none; -webkit-user-select:none; user-select:none;
+    max-width:100%; padding:4px 0;
+  }
+  .map-zoom{ transform-origin:center center; transition:transform 0.05s linear; }
   .map-grid{
-    display:grid; grid-template-columns:repeat(12, 23px); grid-template-rows:repeat(8, 23px);
+    --map-cols:12; --map-rows:8;
+    display:grid; grid-template-columns:repeat(var(--map-cols), 23px); grid-template-rows:repeat(var(--map-rows), 23px);
     gap:2px; background:var(--grid-line); padding:2px; border-radius:4px;
   }
+  .zoom-reset-btn{
+    display:block; margin:0 auto 6px; background:var(--panel-alt); border:1px solid var(--grid-line);
+    border-radius:4px; padding:4px 10px; font-family:inherit; font-size:0.6rem; font-weight:600;
+    color:var(--text); cursor:pointer;
+  }
+  .zoom-reset-btn.hidden{ display:none; }
   .tile{
     width:23px; height:23px; display:flex; align-items:center; justify-content:center;
     font-size:0.62rem; font-weight:700; background:var(--floor); color:var(--floor-text); border-radius:1px;
@@ -261,7 +273,7 @@
     .tab-panel{ display:block !important; }
     .side-col{ display:flex; flex-direction:column; gap:14px; }
     .side-col .panel-box{ background:var(--panel); border:1px solid var(--grid-line); border-radius:6px; padding:12px; }
-    .map-grid{ grid-template-columns:repeat(12, 30px); grid-template-rows:repeat(8, 30px); }
+    .map-grid{ grid-template-columns:repeat(var(--map-cols), 30px); grid-template-rows:repeat(var(--map-rows), 30px); }
     .tile{ width:30px; height:30px; font-size:0.74rem; }
     .dpad{ grid-template-columns:repeat(3,48px); grid-template-rows:repeat(3,48px); }
   }
@@ -279,25 +291,14 @@
     <div class="mode-card">
       <button class="btn hidden" id="resume-btn" style="margin-bottom:10px;">Reprendre la partie sauvegardée</button>
       <button class="btn secondary" id="ach-open-btn-home" style="margin-bottom:10px;">🏆 Succès</button>
-      <p>Une étagère par couleur sur le pourtour. Les caches sont en damier au centre. Chaque objet placé rapporte 1$ : agrandis ton sac, ou débloque l'Aimant, le Téléporteur et le Classement automatique. Une fois toutes les étagères réparées, enchaîne une nouvelle manche sans perdre tes améliorations. Choisis un thème pour cette manche :</p>
-      <div class="gtheme-row" id="gtheme-row">
-        <button class="gtheme-btn active" data-gtheme="clavier"><b>&#9000;&#65039; Clavier</b><span>Chiffres, symboles, lettres</span></button>
-        <button class="gtheme-btn" data-gtheme="crayons"><b>&#9999;&#65039; Crayons</b><span>Bois, couleur, feutres, stylos</span></button>
-      </div>
-      <button class="mode-btn" id="btn-dependance">
-        <b>Mode Dépendance</b>
-        <span>L'étagère se répare en 2 blocs : Bloc A, puis Bloc B. B reste verrouillé tant que A n'est pas à moitié rempli.</span>
-      </button>
-      <button class="mode-btn" id="btn-souscla">
-        <b>Mode Sous-catégories</b>
-        <span>Les 4 catégories du thème choisi sont ouvertes dès le départ.</span>
-      </button>
+      <p>Le jeu progresse par niveaux : le niveau 1 commence avec 4 couleurs, et chaque niveau suivant en ajoute une, jusqu'à 16. Une étagère par couleur sur le pourtour, les caches en damier (regroupées vers le centre). Chaque objet placé rapporte de l'argent : agrandis ton sac, ou débloque l'Aimant, le Téléporteur, le Classement automatique et d'autres améliorations. Dès qu'une étagère de chaque couleur est réparée, le niveau suivant démarre automatiquement, sans perdre tes améliorations.</p>
+      <button class="btn" id="btn-start">Commencer (Niveau 1 — 4 couleurs)</button>
     </div>
   </div>
 
   <div id="screen-game" class="hidden">
     <div class="hud">
-      <div>MODE<b id="hud-mode">-</b></div>
+      <div>NIVEAU<b id="hud-mode">-</b></div>
       <div>TOUCHES<b id="hud-placed">0/720</b></div>
       <div>SAC<b id="hud-tray">0/2</b></div>
       <div>$<b id="hud-money">0</b></div>
@@ -308,7 +309,8 @@
     <div class="game-layout">
       <div class="map-col">
         <div id="tab-carte" class="tab-panel active">
-          <div class="map-wrap"><div class="map-grid" id="map-grid"></div></div>
+          <button class="zoom-reset-btn hidden" id="zoom-reset-btn">Réinitialiser le zoom</button>
+          <div class="map-wrap" id="map-wrap"><div class="map-zoom" id="map-zoom"><div class="map-grid" id="map-grid"></div></div></div>
           <button class="btn" id="enter-btn">Rien à faire ici</button>
           <div class="dpad">
             <div class="empty"></div><button id="btn-up">&#9650;</button><div class="empty"></div>
@@ -340,6 +342,8 @@
               <button class="shop-btn" id="shop-magnet-btn">Acheter l'Aimant (ramassage à la demande) — 150$</button>
               <button class="shop-btn" id="shop-teleport-btn">Acheter le Téléporteur (voyage rapide) — 300$</button>
               <button class="shop-btn" id="shop-autosort-btn">Acheter le Classement automatique — 500$</button>
+              <button class="shop-btn" id="shop-recall-btn">Acheter le Rappel de couleur — 200$</button>
+              <button class="shop-btn hidden" id="shop-price-btn">Augmenter la valeur des touches</button>
             </div>
             <div id="teleport-box" class="hidden">
               <div class="section-label">Téléportation</div>
@@ -398,6 +402,7 @@
         <div class="cat-buttons" id="cat-buttons"></div>
       </div>
       <button class="btn secondary" id="shelf-autosort-btn" style="margin-bottom:6px;">⌨️ Tout classer (Classement automatique)</button>
+      <button class="btn secondary" id="shelf-recall-btn" style="margin-bottom:6px;">📡 Rappeler cette couleur (Rappel de couleur)</button>
       <div class="toast" id="shelf-autosort-toast"></div>
 
       <div class="section-label">Ton sac (touche une touche pour la choisir ; sinon la plus ancienne est utilisée)</div>
@@ -418,10 +423,10 @@
 
 <div class="overlay" id="overlay">
   <div class="card">
-    <h2>Tous les claviers sont réparés !</h2>
+    <h2>Niveau terminé !</h2>
     <p id="summary"></p>
-    <button class="btn" id="next-round-btn">Manche suivante (garder mes améliorations)</button>
-    <button class="btn secondary" id="restart">Nouvelle partie (tout réinitialiser)</button>
+    <p style="font-size:0.66rem;color:var(--muted);margin:-8px 0 12px;">Le niveau suivant démarre automatiquement...</p>
+    <button class="btn secondary" id="restart">Recommencer au niveau 1 (tout réinitialiser)</button>
   </div>
 </div>
 
@@ -455,7 +460,7 @@
 
 <script>
 (function(){
-  const SAVE_KEY='clavierPerduSaveV8';
+  const SAVE_KEY='clavierPerduSaveV10';
   const THEME_KEY='clavierPerduTheme';
   const COLORS=[
     {id:'rouge', label:'Rouge', hex:'#c0392b'},
@@ -519,17 +524,36 @@
     if(td.depBlocks.B.includes(zoneName)) return 'B';
     return null;
   }
-  function themeTotalCount(themeId){
+  function themeTotalCount(themeId, colorCount){
     const td = themeDef(themeId);
-    return COLORS.length * td.zones.reduce((s,z)=>s+zoneSize(td,z), 0);
+    const n = colorCount || (state && activeColors().length) || COLORS.length;
+    return n * td.zones.reduce((s,z)=>s+zoneSize(td,z), 0);
+  }
+
+  const START_LEVEL_COLORS=4, MAX_LEVEL = COLORS.length - START_LEVEL_COLORS + 1; // level 1 = 4 colors ... level MAX_LEVEL = all colors
+  function colorsForLevel(level){ return COLORS.slice(0, Math.min(START_LEVEL_COLORS + (level-1), COLORS.length)); }
+  function activeColors(){ return colorsForLevel(state ? (state.level||1) : 1); }
+
+  // Map grows with the level: a small board for the first few colors, up to
+  // the full COLS x ROWS board (12x8) once the level roster reaches all 16 colors.
+  const MAP_MIN_COLS=8, MAP_MIN_ROWS=6, MAP_MAX_COLS=12, MAP_MAX_ROWS=8;
+  function mapDimsForLevel(level){
+    const lvl = Math.max(1, Math.min(level||1, MAX_LEVEL));
+    const t = MAX_LEVEL>1 ? (lvl-1)/(MAX_LEVEL-1) : 1;
+    const cols = Math.round(MAP_MIN_COLS + (MAP_MAX_COLS-MAP_MIN_COLS)*t);
+    const rows = Math.round(MAP_MIN_ROWS + (MAP_MAX_ROWS-MAP_MIN_ROWS)*t);
+    return {cols, rows};
   }
 
   const COLS=12, ROWS=8;
   const BASE_CAP=2, MAX_CAP=40;
   const PILE_MAX=25;
   const MAGNET_COST=150, TELEPORT_COST=300, AUTOSORT_COST=500;
+  const COLOR_RECALL_COST=200;
+  const PRICE_TIER_BASE_COST=100, PRICE_TIER_COST_STEP=50, PRICE_TIER_INCREMENT=0.25, PRICE_TIER_MAX=5, PRICE_UNLOCK_LEVEL=6;
 
   function colorOf(id){ return COLORS.find(c=>c.id===id); }
+  function formatMoney(v){ return (Math.round(v*100)/100).toFixed(v%1===0 ? 0 : 2); }
   function shuffle(arr){ for(let i=arr.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [arr[i],arr[j]]=[arr[j],arr[i]]; } return arr; }
 
   // ---------- theme ----------
@@ -666,23 +690,23 @@
     return list; // 72
   }
 
-  function buildPool(themeId){
+  function buildPool(themeId, colorList){
     const pool=[];
     const list = fullCharList(themeId);
-    COLORS.forEach(c=>{
+    (colorList || COLORS).forEach(c=>{
       list.forEach(item=>{
         pool.push({ uid:Math.random().toString(36).slice(2,9), color:c.id, type:item.type, char:item.char });
       });
     });
-    return pool; // COLORS.length * zones total size
+    return pool; // colorList.length * zones total size
   }
 
   function makeZoneFlat(chars){ return chars.map(ch=>({char:ch, filled:false})); }
 
-  function buildKeyboards(mode, themeId){
+  function buildKeyboards(mode, themeId, colorList){
     const td = themeDef(themeId);
     const kb={};
-    COLORS.forEach(c=>{
+    (colorList || COLORS).forEach(c=>{
       const zonesObj={};
       td.zones.forEach(z=>{
         zonesObj[z] = td.zoneKind[z]==='letter' ? {collected:[]} : makeZoneFlat(td.zoneItems[z]);
@@ -767,6 +791,61 @@
     state.money-=AUTOSORT_COST; state.hasAutoSort=true;
     renderAll();
   }
+  function buyColorRecall(){
+    if(state.hasColorRecall || state.money<COLOR_RECALL_COST) return;
+    state.money-=COLOR_RECALL_COST; state.hasColorRecall=true;
+    renderAll();
+  }
+
+  function perPieceValue(){
+    return Math.min(PRICE_TIER_MAX, 1 + PRICE_TIER_INCREMENT*(state.priceLevel||0));
+  }
+  function priceTierMaxed(){ return perPieceValue() >= PRICE_TIER_MAX - 1e-9; }
+  function priceTierCost(){ return PRICE_TIER_BASE_COST + PRICE_TIER_COST_STEP*(state.priceLevel||0); }
+  function priceTierUnlocked(){ return (state.level||1) >= PRICE_UNLOCK_LEVEL; }
+  function buyPriceTier(){
+    if(!priceTierUnlocked() || priceTierMaxed()) return;
+    const cost = priceTierCost();
+    if(state.money<cost) return;
+    state.money = Math.round((state.money-cost)*100)/100;
+    state.priceLevel = (state.priceLevel||0)+1;
+    renderAll();
+  }
+
+  // Pulls every not-yet-collected piece of a given color from every cache
+  // and ground pile on the map straight into the tray (up to capacity).
+  function recallColor(colorId){
+    if(!state.hasColorRecall) return 0;
+    let pulled=0;
+    for(let y=0;y<state.rows;y++){
+      for(let x=0;x<state.cols;x++){
+        const cell = state.grid[y][x];
+        if(cell.type==='cache' && cell.keys){
+          for(let i=0;i<cell.keys.length && state.tray.length<getTrayCap(); i++){
+            const k = cell.keys[i];
+            if(k && !k.taken && k.color===colorId){
+              cell.keys[i] = {taken:true};
+              state.tray.push(k);
+              pulled++;
+            }
+          }
+        }
+      }
+    }
+    Object.keys(state.groundPiles).forEach(coordKey=>{
+      const arr = state.groundPiles[coordKey];
+      if(!arr) return;
+      for(let i=0;i<arr.length && state.tray.length<getTrayCap(); i++){
+        const k = arr[i];
+        if(k && !k.taken && k.color===colorId){
+          arr[i] = {taken:true};
+          state.tray.push(k);
+          pulled++;
+        }
+      }
+    });
+    return pulled;
+  }
 
   function computeCacheSizes(total){
     const sizes=[]; let remaining=total;
@@ -774,20 +853,22 @@
     return sizes;
   }
 
-  function generateMap(pool){
+  function generateMap(pool, colorList, cols, rows){
+    const colors = colorList || COLORS;
+    const C = cols || COLS, R = rows || ROWS;
     const sizes = computeCacheSizes(pool.length);
     const numCaches = sizes.length;
 
     const perim=[];
-    for(let x=0;x<COLS;x++) perim.push({x,y:0});
-    for(let y=1;y<ROWS-1;y++) perim.push({x:COLS-1,y});
-    for(let x=COLS-1;x>=0;x--) perim.push({x,y:ROWS-1});
-    for(let y=ROWS-2;y>=1;y--) perim.push({x:0,y});
+    for(let x=0;x<C;x++) perim.push({x,y:0});
+    for(let y=1;y<R-1;y++) perim.push({x:C-1,y});
+    for(let x=C-1;x>=0;x--) perim.push({x,y:R-1});
+    for(let y=R-2;y>=1;y--) perim.push({x:0,y});
 
-    const step = perim.length/COLORS.length;
+    const step = perim.length/colors.length;
     const shelfIdx = new Set();
     const shelfCoords=[];
-    for(let i=0;i<COLORS.length;i++){
+    for(let i=0;i<colors.length;i++){
       const idx = Math.floor(i*step);
       shelfIdx.add(idx);
       shelfCoords.push(perim[idx]);
@@ -797,11 +878,11 @@
     // Interior cells, sorted by distance to the board's center so caches
     // fill up from the middle outward (piles grouped in the center).
     const interior=[];
-    for(let y=1;y<ROWS-1;y++){
-      for(let x=1;x<COLS-1;x++) interior.push({x,y});
+    for(let y=1;y<R-1;y++){
+      for(let x=1;x<C-1;x++) interior.push({x,y});
     }
     shuffle(interior);
-    const cx=(COLS-1)/2, cy=(ROWS-1)/2;
+    const cx=(C-1)/2, cy=(R-1)/2;
     interior.sort((a,b)=>{
       const da=Math.hypot(a.x-cx,a.y-cy), db=Math.hypot(b.x-cx,b.y-cy);
       return da-db;
@@ -816,12 +897,12 @@
     const cachesCoords = interior.concat(perimOverflow).slice(0, numCaches);
 
     const grid=[];
-    for(let y=0;y<ROWS;y++){
+    for(let y=0;y<R;y++){
       const row=[];
-      for(let x=0;x<COLS;x++) row.push({type:'floor'});
+      for(let x=0;x<C;x++) row.push({type:'floor'});
       grid.push(row);
     }
-    shelfCoords.forEach((p,i)=>{ grid[p.y][p.x]={type:'shelf', color:COLORS[i].id}; });
+    shelfCoords.forEach((p,i)=>{ grid[p.y][p.x]={type:'shelf', color:colors[i].id}; });
     const pool2=shuffle(pool.slice());
     let idx=0;
     cachesCoords.forEach((p,i)=>{
@@ -830,17 +911,21 @@
       idx+=n;
     });
 
-    return {grid, start};
+    return {grid, start, cols:C, rows:R};
   }
 
-  function freshRoundState(mode, keep, themeId){
-    const theme = themeId || 'clavier';
-    const pool = buildPool(theme);
-    const {grid, start} = generateMap(pool);
+  function freshRoundState(keep, level){
+    const mode = 'souscla';
+    const theme = 'clavier';
+    const lvl = Math.max(1, Math.min(level || 1, MAX_LEVEL));
+    const colorList = colorsForLevel(lvl);
+    const pool = buildPool(theme, colorList);
+    const {cols, rows} = mapDimsForLevel(lvl);
+    const {grid, start} = generateMap(pool, colorList, cols, rows);
     return {
-      mode, theme, grid, player:{x:start.x,y:start.y},
+      mode, theme, level: lvl, cols, rows, grid, player:{x:start.x,y:start.y},
       tray:[], selectedUid:null,
-      keyboards: buildKeyboards(mode, theme),
+      keyboards: buildKeyboards(mode, theme, colorList),
       groundPiles: {},
       totalPlaced:0, score:0, mistakes:0,
       money: keep ? keep.money : 0,
@@ -849,25 +934,21 @@
       magnetActive: keep ? keep.magnetActive : false,
       hasTeleport: keep ? keep.hasTeleport : false,
       hasAutoSort: keep ? keep.hasAutoSort : false,
+      priceLevel: keep ? keep.priceLevel : 0,
+      hasColorRecall: keep ? keep.hasColorRecall : false,
       round: keep ? keep.round+1 : 1,
       panel:'map', activeShelf:null
     };
   }
 
   function updateHudMode(){
-    const td=themeDef();
-    document.getElementById('hud-mode').textContent = td.icon + ' ' + (state.mode==='dependance' ? 'Dépend.' : 'Sous-cla') + ' R' + (state.round||1);
+    document.getElementById('hud-mode').textContent = 'Niv. '+state.level+' ('+activeColors().length+' coul.)';
   }
 
-  let pendingTheme = 'clavier';
   let pendingKeep = null;
 
-  function syncThemeButtons(){
-    document.querySelectorAll('.gtheme-btn').forEach(b=>b.classList.toggle('active', b.dataset.gtheme===pendingTheme));
-  }
-
-  function startGame(mode){
-    state = freshRoundState(mode, pendingKeep, pendingTheme);
+  function startGame(){
+    state = freshRoundState(pendingKeep, 1);
     pendingKeep = null;
     currentTab='carte';
     document.getElementById('screen-mode').classList.add('hidden');
@@ -877,19 +958,30 @@
     renderAll();
   }
 
-  function nextRound(){
-    pendingKeep = { money:state.money, trayUpgrades:state.trayUpgrades, hasMagnet:state.hasMagnet, magnetActive:state.magnetActive, hasTeleport:state.hasTeleport, hasAutoSort:state.hasAutoSort, round:state.round||1 };
-    pendingTheme = state.theme || 'clavier';
+  function nextLevel(){
+    const keep = { money:state.money, trayUpgrades:state.trayUpgrades, hasMagnet:state.hasMagnet, magnetActive:state.magnetActive, hasTeleport:state.hasTeleport, hasAutoSort:state.hasAutoSort, priceLevel:state.priceLevel, hasColorRecall:state.hasColorRecall, round:state.round||1 };
+    let nextLvl = (state.level||1) + 1;
+    if(nextLvl > MAX_LEVEL) nextLvl = 1;
+    state = freshRoundState(keep, nextLvl);
     document.getElementById('overlay').classList.remove('show');
+    updateHudMode();
+    renderAll();
+  }
+
+  function restartFromLevel1(){
+    clearTimeout(levelAdvanceTimer);
+    clearSave();
+    pendingKeep = null;
+    document.getElementById('overlay').classList.remove('show');
+    document.getElementById('settings-overlay').classList.remove('show');
     document.getElementById('screen-game').classList.add('hidden');
     document.getElementById('screen-mode').classList.remove('hidden');
     document.getElementById('resume-btn').classList.add('hidden');
-    syncThemeButtons();
   }
 
   function sanitizePiles(){
-    for(let y=0;y<ROWS;y++){
-      for(let x=0;x<COLS;x++){
+    for(let y=0;y<state.rows;y++){
+      for(let x=0;x<state.cols;x++){
         const cell = state.grid[y][x];
         if(cell.type==='cache' && cell.keys && cell.keys.length>PILE_MAX) trimPile(cell.keys);
       }
@@ -909,7 +1001,7 @@
 
   function sanitizeKeyboards(){
     const td=themeDef();
-    COLORS.forEach(c=>{
+    activeColors().forEach(c=>{
       td.zones.filter(z=>td.zoneKind[z]==='letter').forEach(z=>{
         const zoneObj = getZone(c.id, z);
         const seen = new Set();
@@ -929,7 +1021,7 @@
   function sanitizeDuplicateKeys(){
     const seen = new Set();
     const td=themeDef();
-    COLORS.forEach(c=>{
+    activeColors().forEach(c=>{
       td.zones.forEach(z=>{
         const zoneObj = getZone(c.id, z);
         if(td.zoneKind[z]==='letter'){
@@ -948,8 +1040,8 @@
         else seen.add(k);
       }
     }
-    for(let y=0;y<ROWS;y++){
-      for(let x=0;x<COLS;x++){
+    for(let y=0;y<state.rows;y++){
+      for(let x=0;x<state.cols;x++){
         const cell = state.grid[y][x];
         if(cell.type==='cache' && cell.keys) scan(cell.keys);
       }
@@ -977,6 +1069,20 @@
       if(typeof state.hasTeleport!=='boolean') state.hasTeleport=false;
       if(typeof state.hasAutoSort!=='boolean') state.hasAutoSort=false;
       if(typeof state.round!=='number') state.round=1;
+      if(typeof state.level!=='number' || state.level<1) state.level=1;
+      if(state.level>MAX_LEVEL) state.level=MAX_LEVEL;
+      if(typeof state.priceLevel!=='number') state.priceLevel=0;
+      if(typeof state.hasColorRecall!=='boolean') state.hasColorRecall=false;
+      if(typeof state.cols!=='number' || typeof state.rows!=='number'){
+        // Derive from the actual saved grid shape when present (safest), else
+        // fall back to what the level would normally generate.
+        if(Array.isArray(state.grid) && state.grid.length && Array.isArray(state.grid[0])){
+          state.rows = state.grid.length; state.cols = state.grid[0].length;
+        } else {
+          const dims = mapDimsForLevel(state.level);
+          state.cols = dims.cols; state.rows = dims.rows;
+        }
+      }
       sanitizePiles();
       sanitizeKeyboards();
       sanitizeDuplicateKeys();
@@ -1002,7 +1108,7 @@
   function move(dx,dy){
     if(state.panel!=='map') return;
     const nx=state.player.x+dx, ny=state.player.y+dy;
-    if(nx<0||ny<0||nx>=COLS||ny>=ROWS) return;
+    if(nx<0||ny<0||nx>=state.cols||ny>=state.rows) return;
     state.player.x=nx; state.player.y=ny;
     renderAll();
   }
@@ -1044,7 +1150,7 @@
   }
 
   function findShelfCoord(colorId){
-    for(let y=0;y<ROWS;y++) for(let x=0;x<COLS;x++){
+    for(let y=0;y<state.rows;y++) for(let x=0;x<state.cols;x++){
       const c=state.grid[y][x];
       if(c.type==='shelf' && c.color===colorId) return {x,y};
     }
@@ -1059,7 +1165,7 @@
   }
   function findNearestCache(){
     let best=null, bestDist=Infinity;
-    for(let y=0;y<ROWS;y++) for(let x=0;x<COLS;x++){
+    for(let y=0;y<state.rows;y++) for(let x=0;x<state.cols;x++){
       const c=state.grid[y][x];
       if(c.type==='cache' && c.keys && c.keys.some(k=>!k.taken)){
         const d=Math.abs(x-state.player.x)+Math.abs(y-state.player.y);
@@ -1097,7 +1203,7 @@
   function renderHud(){
     document.getElementById('hud-placed').textContent = state.totalPlaced+'/'+themeTotalCount(state.theme);
     document.getElementById('hud-tray').textContent = state.tray.length+'/'+getTrayCap();
-    document.getElementById('hud-money').textContent = state.money;
+    document.getElementById('hud-money').textContent = formatMoney(state.money);
     document.getElementById('hud-mistakes').textContent = state.mistakes;
     document.getElementById('save-status').textContent = state._lastSaveOk===false ? '\u26A0\uFE0F Sauvegarde impossible sur cet appareil/navigateur' : '';
     if(state.money>=1000) unlockAchievement('richissime');
@@ -1273,12 +1379,34 @@
       asBtn.disabled = state.money<AUTOSORT_COST; asBtn.classList.remove('owned');
     }
 
+    const recallBtn=document.getElementById('shop-recall-btn');
+    if(state.hasColorRecall){
+      recallBtn.textContent='Rappel de couleur acquis \u2713';
+      recallBtn.disabled=true; recallBtn.classList.add('owned');
+    } else {
+      recallBtn.textContent='Acheter le Rappel de couleur — '+COLOR_RECALL_COST+'$';
+      recallBtn.disabled = state.money<COLOR_RECALL_COST; recallBtn.classList.remove('owned');
+    }
+
+    const priceBtn=document.getElementById('shop-price-btn');
+    priceBtn.classList.toggle('hidden', !priceTierUnlocked());
+    if(priceTierUnlocked()){
+      if(priceTierMaxed()){
+        priceBtn.textContent='Valeur des touches au maximum ('+formatMoney(PRICE_TIER_MAX)+'$) \u2713';
+        priceBtn.disabled=true; priceBtn.classList.add('owned');
+      } else {
+        const cost=priceTierCost();
+        priceBtn.textContent='Augmenter la valeur des touches ('+formatMoney(perPieceValue())+'$ \u2192 '+formatMoney(perPieceValue()+PRICE_TIER_INCREMENT)+'$) — '+cost+'$';
+        priceBtn.disabled = state.money<cost; priceBtn.classList.remove('owned');
+      }
+    }
+
     const tpBox=document.getElementById('teleport-box');
     tpBox.classList.toggle('hidden', !state.hasTeleport);
     if(state.hasTeleport){
       const grid=document.getElementById('teleport-grid');
       grid.innerHTML='';
-      COLORS.forEach(c=>{
+      activeColors().forEach(c=>{
         const b=document.createElement('button');
         b.className='tp-swatch';
         b.style.background=c.hex;
@@ -1321,12 +1449,18 @@
   function renderMap(){
     const el = document.getElementById('map-grid');
     el.innerHTML='';
-    for(let y=0;y<ROWS;y++){
-      for(let x=0;x<COLS;x++){
+    el.style.setProperty('--map-cols', state.cols);
+    el.style.setProperty('--map-rows', state.rows);
+    // Free visual rep\u00e9rage: highlight caches/piles holding the color of the
+    // selected inventory item (or the last shelf visited) so it's easy to spot.
+    const selKey = state.selectedUid ? state.tray.find(k=>k.uid===state.selectedUid) : null;
+    const highlightColorId = selKey ? selKey.color : (state.activeShelf || null);
+    for(let y=0;y<state.rows;y++){
+      for(let x=0;x<state.cols;x++){
         const cell = state.grid[y][x];
         const div = document.createElement('div');
         let cls='tile', ch=null, mosaicArr=null;
-        div.style.background=''; div.style.color='';
+        div.style.background=''; div.style.color=''; div.style.boxShadow='';
         if(cell.type==='cache'){
           if(cell.keys && cell.keys.some(k=>!k.taken)){ cls+=' cache'; mosaicArr=cell.keys; }
           else ch='.';
@@ -1339,8 +1473,11 @@
           if(gp && gp.some(k=>!k.taken)){ cls+=' cache'; mosaicArr=gp; }
           else ch='.';
         }
+        if(highlightColorId && mosaicArr && mosaicArr.some(k=>k && !k.taken && k.color===highlightColorId)){
+          div.style.boxShadow = 'inset 0 0 0 2px '+colorOf(highlightColorId).hex;
+        }
         if(state.player.x===x && state.player.y===y){
-          cls='tile player'; ch='@'; mosaicArr=null; div.style.background=''; div.style.color='';
+          cls='tile player'; ch='@'; mosaicArr=null; div.style.background=''; div.style.color=''; div.style.boxShadow='';
         }
         div.className=cls;
         if(mosaicArr) buildMosaic(div, mosaicArr);
@@ -1493,7 +1630,7 @@
     if(state.selectedUid===key.uid) state.selectedUid=null;
     state.totalPlaced++;
     state.score+=10;
-    state.money+=1;
+    state.money = Math.round((state.money+perPieceValue())*100)/100;
     if(shelfDone(colorId)) unlockAchievement('premier_pas');
     renderShelf(colorId, zoneName);
     renderHud(); checkWin(); saveGame();
@@ -1519,7 +1656,7 @@
       }
       state.tray = state.tray.filter(k=>k.uid!==key.uid);
       if(state.selectedUid===key.uid) state.selectedUid=null;
-      state.totalPlaced++; state.score+=10; state.money+=1;
+      state.totalPlaced++; state.score+=10; state.money = Math.round((state.money+perPieceValue())*100)/100;
       placed++;
     });
     afterPlaceCheckUnlock(colorId);
@@ -1599,6 +1736,16 @@
     asBtn.disabled = !state.tray.some(k=>k.color===colorId);
     asBtn.onclick = ()=>autoSortShelf(colorId);
 
+    const recallBtn=document.getElementById('shelf-recall-btn');
+    recallBtn.classList.toggle('hidden', !state.hasColorRecall);
+    recallBtn.disabled = getTrayCap()<=state.tray.length;
+    recallBtn.onclick = ()=>{
+      const pulled = recallColor(colorId);
+      const toastEl=document.getElementById('shelf-autosort-toast');
+      toastEl.textContent = pulled>0 ? (pulled+' '+td.unit+'(s) '+c.label.toLowerCase()+' rappelée(s) dans l’inventaire') : 'Aucune touche '+c.label.toLowerCase()+' à rappeler pour le moment.';
+      renderAll();
+    };
+
     renderTrayInto('shelf-tray');
     updateDropOneButton('shelf-drop-btn');
     updateDropAllButton('shelf-drop-all-btn');
@@ -1645,9 +1792,10 @@
     }
   }
 
+  let levelAdvanceTimer = null;
   function checkWin(){
     if(state.totalPlaced>=themeTotalCount(state.theme)){
-      document.getElementById('summary').textContent = 'Manche '+(state.round||1)+' terminée. Score : '+state.score+' &middot; Erreurs : '+state.mistakes+' &middot; Argent : '+state.money+'$';
+      document.getElementById('summary').textContent = 'Niveau '+(state.level||1)+' terminé ('+activeColors().length+' couleurs). Score : '+state.score+' &middot; Erreurs : '+state.mistakes+' &middot; Argent : '+formatMoney(state.money)+'$';
       document.getElementById('overlay').classList.add('show');
       unlockAchievement('collection_complete');
       achievements.totalRounds = (achievements.totalRounds||0) + 1;
@@ -1656,20 +1804,15 @@
       if(state.mistakes===0) unlockAchievement('sans_faute');
       if(!state.hasMagnet && !state.hasTeleport) unlockAchievement('minimaliste');
       clearSave();
+      clearTimeout(levelAdvanceTimer);
+      levelAdvanceTimer = setTimeout(()=>{ nextLevel(); }, 1800);
     }
   }
 
   const existingSave = loadSavedGame();
   if(existingSave) document.getElementById('resume-btn').classList.remove('hidden');
 
-  document.querySelectorAll('.gtheme-btn').forEach(btn=>{
-    btn.addEventListener('click', ()=>{
-      pendingTheme = btn.dataset.gtheme;
-      syncThemeButtons();
-    });
-  });
-  document.getElementById('btn-dependance').addEventListener('click', ()=>startGame('dependance'));
-  document.getElementById('btn-souscla').addEventListener('click', ()=>startGame('souscla'));
+  document.getElementById('btn-start').addEventListener('click', ()=>startGame());
   document.getElementById('resume-btn').addEventListener('click', resumeGame);
   document.getElementById('ach-open-btn-home').addEventListener('click', openAchievements);
   document.getElementById('ach-close-btn').addEventListener('click', closeAchievements);
@@ -1690,15 +1833,58 @@
   document.getElementById('shop-upgrade-btn').addEventListener('click', buyTrayUpgrade);
   document.getElementById('shop-teleport-btn').addEventListener('click', buyTeleport);
   document.getElementById('shop-autosort-btn').addEventListener('click', buyAutoSort);
-  document.getElementById('next-round-btn').addEventListener('click', nextRound);
-  document.getElementById('restart').addEventListener('click', ()=>{
-    pendingKeep = null;
-    pendingTheme = 'clavier';
-    syncThemeButtons();
-    document.getElementById('overlay').classList.remove('show');
-    document.getElementById('screen-game').classList.add('hidden');
-    document.getElementById('screen-mode').classList.remove('hidden');
-  });
+  document.getElementById('shop-recall-btn').addEventListener('click', buyColorRecall);
+  document.getElementById('shop-price-btn').addEventListener('click', buyPriceTier);
+  document.getElementById('restart').addEventListener('click', restartFromLevel1);
+
+  // --- Map pinch-to-zoom ---
+  (function initMapZoom(){
+    const MIN_ZOOM = 0.6, MAX_ZOOM = 2.5;
+    const wrap = document.getElementById('map-wrap');
+    const zoomEl = document.getElementById('map-zoom');
+    const resetBtn = document.getElementById('zoom-reset-btn');
+    let zoom = 1;
+    let pinchStartDist = null, pinchStartZoom = 1;
+
+    function applyZoom(){
+      zoomEl.style.transform = 'scale(' + zoom + ')';
+      resetBtn.classList.toggle('hidden', Math.abs(zoom - 1) < 0.02);
+    }
+    function setZoom(z){
+      zoom = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, z));
+      applyZoom();
+    }
+    function touchDist(t0, t1){
+      return Math.hypot(t0.clientX - t1.clientX, t0.clientY - t1.clientY);
+    }
+
+    wrap.addEventListener('touchstart', (e)=>{
+      if(e.touches.length === 2){
+        pinchStartDist = touchDist(e.touches[0], e.touches[1]);
+        pinchStartZoom = zoom;
+      }
+    }, {passive:true});
+    wrap.addEventListener('touchmove', (e)=>{
+      if(e.touches.length === 2 && pinchStartDist){
+        e.preventDefault();
+        const dist = touchDist(e.touches[0], e.touches[1]);
+        setZoom(pinchStartZoom * (dist / pinchStartDist));
+      }
+    }, {passive:false});
+    wrap.addEventListener('touchend', (e)=>{
+      if(e.touches.length < 2) pinchStartDist = null;
+    }, {passive:true});
+
+    // Desktop trackpad pinch (fires as ctrl/meta + wheel) and ctrl+scroll fallback
+    wrap.addEventListener('wheel', (e)=>{
+      if(e.ctrlKey || e.metaKey){
+        e.preventDefault();
+        setZoom(zoom - e.deltaY * 0.01);
+      }
+    }, {passive:false});
+
+    resetBtn.addEventListener('click', ()=> setZoom(1));
+  })();
   document.querySelectorAll('.tab-btn').forEach(btn=>{
     btn.addEventListener('click', ()=>setTab(btn.dataset.tab));
   });
