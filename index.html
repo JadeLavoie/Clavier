@@ -342,7 +342,7 @@
               <button class="shop-btn" id="shop-magnet-btn">Acheter l'Aimant (ramassage à la demande) — 150$</button>
               <button class="shop-btn" id="shop-teleport-btn">Acheter le Téléporteur (voyage rapide) — 300$</button>
               <button class="shop-btn" id="shop-autosort-btn">Acheter le Classement automatique — 500$</button>
-              <button class="shop-btn" id="shop-recall-btn">Acheter le Rappel de couleur — 200$</button>
+              <button class="shop-btn" id="shop-recall-btn">Acheter le Rappel de couleur (1 touche, 30s de recharge) — 200$</button>
               <button class="shop-btn hidden" id="shop-price-btn">Augmenter la valeur des touches</button>
             </div>
             <div id="teleport-box" class="hidden">
@@ -460,7 +460,7 @@
 
 <script>
 (function(){
-  const SAVE_KEY='clavierPerduSaveV10';
+  const SAVE_KEY='clavierPerduSaveV11';
   const THEME_KEY='clavierPerduTheme';
   const COLORS=[
     {id:'rouge', label:'Rouge', hex:'#c0392b'},
@@ -549,7 +549,11 @@
   const BASE_CAP=2, MAX_CAP=40;
   const PILE_MAX=25;
   const MAGNET_COST=150, TELEPORT_COST=300, AUTOSORT_COST=500;
-  const COLOR_RECALL_COST=200;
+  // Rappel de couleur: progressive tiers. Tier 1 recalls a single piece per
+  // use; each further tier recalls one more piece AND shortens the cooldown,
+  // down to a floor, up to COLOR_RECALL_MAX_TIER.
+  const COLOR_RECALL_BASE_COST=200, COLOR_RECALL_COST_STEP=100, COLOR_RECALL_MAX_TIER=5;
+  const COLOR_RECALL_BASE_COOLDOWN_MS=30000, COLOR_RECALL_COOLDOWN_STEP_MS=5000, COLOR_RECALL_MIN_COOLDOWN_MS=10000;
   const PRICE_TIER_BASE_COST=100, PRICE_TIER_COST_STEP=50, PRICE_TIER_INCREMENT=0.25, PRICE_TIER_MAX=5, PRICE_UNLOCK_LEVEL=6;
 
   function colorOf(id){ return COLORS.find(c=>c.id===id); }
@@ -612,7 +616,10 @@
     {id:'minimaliste', cat:'Maîtrise', label:'Minimaliste', desc:'Terminer une manche sans Aimant ni Téléporteur'},
     {id:'richissime', cat:'Économie', label:'Richissime', desc:'Avoir 1000$ ou plus'},
     {id:'sac_xxl', cat:'Économie', label:'Sac XXL', desc:'Atteindre la capacité de sac maximale'},
-    {id:'tout_automatise', cat:'Économie', label:'Tout automatisé', desc:'Acheter l\u2019Aimant et le Téléporteur'}
+    {id:'tout_automatise', cat:'Économie', label:'Tout automatisé', desc:'Acheter l\u2019Aimant et le Téléporteur'},
+    {id:'niveau_max', cat:'Progression', label:'Maître du clavier', desc:'Atteindre le niveau maximum (16 couleurs)'},
+    {id:'valeur_max', cat:'Économie', label:'Touches en or', desc:'Amener la valeur des touches à son maximum (5$)'},
+    {id:'rappel_max', cat:'Économie', label:'Signal fort', desc:'Améliorer le Rappel de couleur jusqu\u2019à son niveau maximum'}
   ];
   const ACH_KEY='clavierPerduAchievementsV1';
   function loadAchievements(){
@@ -791,9 +798,25 @@
     state.money-=AUTOSORT_COST; state.hasAutoSort=true;
     renderAll();
   }
-  function buyColorRecall(){
-    if(state.hasColorRecall || state.money<COLOR_RECALL_COST) return;
-    state.money-=COLOR_RECALL_COST; state.hasColorRecall=true;
+  function colorRecallOwned(){ return (state.colorRecallLevel||0) > 0; }
+  function colorRecallMaxed(){ return (state.colorRecallLevel||0) >= COLOR_RECALL_MAX_TIER; }
+  function colorRecallCapacity(){ return state.colorRecallLevel||0; } // pieces pulled per use
+  function colorRecallCooldownMs(){
+    const lvl = state.colorRecallLevel||0;
+    if(lvl<=0) return 0;
+    return Math.max(COLOR_RECALL_MIN_COOLDOWN_MS, COLOR_RECALL_BASE_COOLDOWN_MS - COLOR_RECALL_COOLDOWN_STEP_MS*(lvl-1));
+  }
+  function colorRecallCost(){ return COLOR_RECALL_BASE_COST + COLOR_RECALL_COST_STEP*(state.colorRecallLevel||0); }
+  function colorRecallCooldownRemainingMs(){
+    return Math.max(0, (state.colorRecallCooldownUntil||0) - Date.now());
+  }
+  function colorRecallOnCooldown(){ return colorRecallCooldownRemainingMs() > 0; }
+  function buyColorRecallTier(){
+    if(colorRecallMaxed()) return;
+    const cost = colorRecallCost();
+    if(state.money<cost) return;
+    state.money = Math.round((state.money-cost)*100)/100;
+    state.colorRecallLevel = (state.colorRecallLevel||0)+1;
     renderAll();
   }
 
@@ -812,16 +835,19 @@
     renderAll();
   }
 
-  // Pulls every not-yet-collected piece of a given color from every cache
-  // and ground pile on the map straight into the tray (up to capacity).
+  // Pulls up to colorRecallCapacity() not-yet-collected pieces of a given
+  // color from caches and ground piles straight into the tray, then starts
+  // the cooldown. Both the per-use amount and the cooldown length scale with
+  // state.colorRecallLevel (bought progressively via buyColorRecallTier).
   function recallColor(colorId){
-    if(!state.hasColorRecall) return 0;
+    if(!colorRecallOwned() || colorRecallOnCooldown()) return 0;
+    const cap = colorRecallCapacity();
     let pulled=0;
-    for(let y=0;y<state.rows;y++){
-      for(let x=0;x<state.cols;x++){
+    for(let y=0;y<state.rows && pulled<cap;y++){
+      for(let x=0;x<state.cols && pulled<cap;x++){
         const cell = state.grid[y][x];
         if(cell.type==='cache' && cell.keys){
-          for(let i=0;i<cell.keys.length && state.tray.length<getTrayCap(); i++){
+          for(let i=0;i<cell.keys.length && pulled<cap && state.tray.length<getTrayCap(); i++){
             const k = cell.keys[i];
             if(k && !k.taken && k.color===colorId){
               cell.keys[i] = {taken:true};
@@ -833,9 +859,10 @@
       }
     }
     Object.keys(state.groundPiles).forEach(coordKey=>{
+      if(pulled>=cap) return;
       const arr = state.groundPiles[coordKey];
       if(!arr) return;
-      for(let i=0;i<arr.length && state.tray.length<getTrayCap(); i++){
+      for(let i=0;i<arr.length && pulled<cap && state.tray.length<getTrayCap(); i++){
         const k = arr[i];
         if(k && !k.taken && k.color===colorId){
           arr[i] = {taken:true};
@@ -844,6 +871,7 @@
         }
       }
     });
+    if(pulled>0) state.colorRecallCooldownUntil = Date.now() + colorRecallCooldownMs();
     return pulled;
   }
 
@@ -935,7 +963,8 @@
       hasTeleport: keep ? keep.hasTeleport : false,
       hasAutoSort: keep ? keep.hasAutoSort : false,
       priceLevel: keep ? keep.priceLevel : 0,
-      hasColorRecall: keep ? keep.hasColorRecall : false,
+      colorRecallLevel: keep ? keep.colorRecallLevel : 0,
+      colorRecallCooldownUntil: 0,
       round: keep ? keep.round+1 : 1,
       panel:'map', activeShelf:null
     };
@@ -959,7 +988,7 @@
   }
 
   function nextLevel(){
-    const keep = { money:state.money, trayUpgrades:state.trayUpgrades, hasMagnet:state.hasMagnet, magnetActive:state.magnetActive, hasTeleport:state.hasTeleport, hasAutoSort:state.hasAutoSort, priceLevel:state.priceLevel, hasColorRecall:state.hasColorRecall, round:state.round||1 };
+    const keep = { money:state.money, trayUpgrades:state.trayUpgrades, hasMagnet:state.hasMagnet, magnetActive:state.magnetActive, hasTeleport:state.hasTeleport, hasAutoSort:state.hasAutoSort, priceLevel:state.priceLevel, colorRecallLevel:state.colorRecallLevel, round:state.round||1 };
     let nextLvl = (state.level||1) + 1;
     if(nextLvl > MAX_LEVEL) nextLvl = 1;
     state = freshRoundState(keep, nextLvl);
@@ -1072,7 +1101,8 @@
       if(typeof state.level!=='number' || state.level<1) state.level=1;
       if(state.level>MAX_LEVEL) state.level=MAX_LEVEL;
       if(typeof state.priceLevel!=='number') state.priceLevel=0;
-      if(typeof state.hasColorRecall!=='boolean') state.hasColorRecall=false;
+      if(typeof state.colorRecallLevel!=='number') state.colorRecallLevel=0;
+      if(typeof state.colorRecallCooldownUntil!=='number') state.colorRecallCooldownUntil=0;
       if(typeof state.cols!=='number' || typeof state.rows!=='number'){
         // Derive from the actual saved grid shape when present (safest), else
         // fall back to what the level would normally generate.
@@ -1209,6 +1239,9 @@
     if(state.money>=1000) unlockAchievement('richissime');
     if(getTrayCap()>=MAX_CAP) unlockAchievement('sac_xxl');
     if(state.hasMagnet && state.hasTeleport) unlockAchievement('tout_automatise');
+    if((state.level||1)>=MAX_LEVEL) unlockAchievement('niveau_max');
+    if(priceTierMaxed()) unlockAchievement('valeur_max');
+    if(colorRecallMaxed()) unlockAchievement('rappel_max');
   }
 
   function renderTrayInto(containerId){
@@ -1380,12 +1413,18 @@
     }
 
     const recallBtn=document.getElementById('shop-recall-btn');
-    if(state.hasColorRecall){
-      recallBtn.textContent='Rappel de couleur acquis \u2713';
+    if(colorRecallMaxed()){
+      recallBtn.textContent='Rappel de couleur au maximum (niveau '+COLOR_RECALL_MAX_TIER+') \u2713';
       recallBtn.disabled=true; recallBtn.classList.add('owned');
     } else {
-      recallBtn.textContent='Acheter le Rappel de couleur — '+COLOR_RECALL_COST+'$';
-      recallBtn.disabled = state.money<COLOR_RECALL_COST; recallBtn.classList.remove('owned');
+      const cost = colorRecallCost();
+      const nextLvl = (state.colorRecallLevel||0)+1;
+      const nextCooldownS = Math.round(Math.max(COLOR_RECALL_MIN_COOLDOWN_MS, COLOR_RECALL_BASE_COOLDOWN_MS - COLOR_RECALL_COOLDOWN_STEP_MS*(nextLvl-1))/1000);
+      const label = (state.colorRecallLevel||0)===0
+        ? 'Acheter le Rappel de couleur (1 touche, '+nextCooldownS+'s de recharge) — '+cost+'$'
+        : 'Améliorer le Rappel de couleur ('+nextLvl+' touches, '+nextCooldownS+'s de recharge) — '+cost+'$';
+      recallBtn.textContent = label;
+      recallBtn.disabled = state.money<cost; recallBtn.classList.remove('owned');
     }
 
     const priceBtn=document.getElementById('shop-price-btn');
@@ -1716,6 +1755,25 @@
     else renderFlatZoneDisplay(container, colorId, zoneName);
   }
 
+  // Keeps the shelf's "Rappeler cette couleur" button in sync with ownership,
+  // tray space and the cooldown countdown (called on render and on a 1s tick
+  // while a shelf is open, since the cooldown ticks down without user input).
+  function updateShelfRecallButton(){
+    const recallBtn=document.getElementById('shelf-recall-btn');
+    if(!recallBtn || state.panel!=='shelf') return;
+    recallBtn.classList.toggle('hidden', !colorRecallOwned());
+    if(!colorRecallOwned()) return;
+    const remainingMs = colorRecallCooldownRemainingMs();
+    if(remainingMs>0){
+      recallBtn.disabled = true;
+      recallBtn.textContent = '📡 Recharge... '+Math.ceil(remainingMs/1000)+'s';
+    } else {
+      recallBtn.disabled = getTrayCap()<=state.tray.length;
+      recallBtn.textContent = '📡 Rappeler cette couleur ('+colorRecallCapacity()+' touche'+(colorRecallCapacity()>1?'s':'')+')';
+    }
+  }
+  setInterval(()=>{ if(state && state.panel==='shelf') updateShelfRecallButton(); }, 500);
+
   function renderShelf(){
     const colorId = state.activeShelf;
     const c = colorOf(colorId);
@@ -1729,13 +1787,11 @@
     asBtn.disabled = !state.tray.some(k=>k.color===colorId);
     asBtn.onclick = ()=>autoSortShelf(colorId);
 
-    const recallBtn=document.getElementById('shelf-recall-btn');
-    recallBtn.classList.toggle('hidden', !state.hasColorRecall);
-    recallBtn.disabled = getTrayCap()<=state.tray.length;
-    recallBtn.onclick = ()=>{
+    updateShelfRecallButton();
+    document.getElementById('shelf-recall-btn').onclick = ()=>{
       const pulled = recallColor(colorId);
       const toastEl=document.getElementById('shelf-autosort-toast');
-      toastEl.textContent = pulled>0 ? (pulled+' '+td.unit+'(s) '+c.label.toLowerCase()+' rappelée(s) dans l’inventaire') : 'Aucune touche '+c.label.toLowerCase()+' à rappeler pour le moment.';
+      toastEl.textContent = pulled>0 ? (pulled+' '+td.unit+'(s) '+c.label.toLowerCase()+' rappelée(s) dans l’inventaire') : 'Aucune touche '+c.label.toLowerCase()+' à rappeler pour le moment (ou en recharge).';
       renderAll();
     };
 
@@ -1826,7 +1882,7 @@
   document.getElementById('shop-upgrade-btn').addEventListener('click', buyTrayUpgrade);
   document.getElementById('shop-teleport-btn').addEventListener('click', buyTeleport);
   document.getElementById('shop-autosort-btn').addEventListener('click', buyAutoSort);
-  document.getElementById('shop-recall-btn').addEventListener('click', buyColorRecall);
+  document.getElementById('shop-recall-btn').addEventListener('click', buyColorRecallTier);
   document.getElementById('shop-price-btn').addEventListener('click', buyPriceTier);
   document.getElementById('restart').addEventListener('click', restartFromLevel1);
 
