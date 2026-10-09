@@ -262,6 +262,22 @@
   .ach-text span{ font-size:0.6rem; color:var(--muted); }
   .ach-link{ background:none; border:none; color:var(--accent); font-family:inherit; font-size:0.66rem; text-decoration:underline; cursor:pointer; padding:6px 0; }
 
+  .order-banner{
+    margin:0 0 6px; padding:5px 8px; border-radius:5px; font-size:0.6rem; line-height:1.4;
+    background:var(--panel-alt); border:1px solid var(--grid-line); color:var(--text);
+  }
+  .order-banner.done{ border-color:var(--accent); color:var(--accent); font-weight:700; }
+  .order-banner.failed{ border-color:var(--danger); color:var(--danger); }
+  .order-banner.challenge{ border-color:#b8860b; }
+  .tile.event{ animation:evpulse 1s ease-in-out infinite; font-size:0.8rem; }
+  .tile.event-tresor{ background:#e0b13a; color:#3a2a00; }
+  .tile.event-recharge{ background:#3a9ad9; color:#fff; }
+  .tile.event.event-fading{ animation-duration:0.35s; }
+  @keyframes evpulse{ 0%,100%{ transform:scale(1); } 50%{ transform:scale(1.12); } }
+  .stats-row{ display:flex; justify-content:space-between; gap:8px; padding:4px 0; border-bottom:1px solid var(--grid-line); font-size:0.62rem; }
+  .stats-row:last-child{ border-bottom:none; }
+  .stats-row span:last-child{ color:var(--muted); text-align:right; }
+
   .hidden{ display:none !important; }
 
   @media (min-width: 860px){
@@ -291,6 +307,7 @@
     <div class="mode-card">
       <button class="btn hidden" id="resume-btn" style="margin-bottom:10px;">Reprendre la partie sauvegardée</button>
       <button class="btn secondary" id="ach-open-btn-home" style="margin-bottom:10px;">🏆 Succès</button>
+      <button class="btn secondary" id="stats-open-btn-home" style="margin-bottom:10px;">📊 Statistiques &amp; records</button>
       <p>Le jeu progresse par niveaux : le niveau 1 commence avec 4 couleurs, et chaque niveau suivant en ajoute une, jusqu'à 16. Une étagère par couleur sur le pourtour, les caches en damier (regroupées vers le centre). Chaque objet placé rapporte de l'argent : agrandis ton sac, ou débloque l'Aimant, le Téléporteur, le Classement automatique et d'autres améliorations. Dès qu'une étagère de chaque couleur est réparée, le niveau suivant démarre automatiquement, sans perdre tes améliorations.</p>
       <button class="btn" id="btn-start">Commencer (Niveau 1 — 4 couleurs)</button>
     </div>
@@ -305,6 +322,8 @@
       <div>ERREURS<b id="hud-mistakes">0</b></div>
     </div>
     <div id="save-status" style="text-align:center;font-size:0.55rem;color:var(--danger);margin:-2px 0 4px;"></div>
+    <div id="challenge-banner" class="order-banner challenge hidden"></div>
+    <div id="order-banner" class="order-banner hidden"></div>
 
     <div class="game-layout">
       <div class="map-col">
@@ -339,6 +358,7 @@
             <div class="section-label" style="margin-top:0;">Boutique</div>
             <div class="shop-row">
               <button class="shop-btn" id="shop-upgrade-btn">Améliorer la capacité du sac (+1) — 10$</button>
+              <button class="shop-btn hidden" id="shop-magnet-range-btn">Augmenter la portée de l'Aimant</button>
               <button class="shop-btn" id="shop-magnet-btn">Acheter l'Aimant (ramassage à la demande) — 150$</button>
               <button class="shop-btn" id="shop-teleport-btn">Acheter le Téléporteur (voyage rapide) — 300$</button>
               <button class="shop-btn" id="shop-autosort-btn">Acheter le Classement automatique — 500$</button>
@@ -423,9 +443,9 @@
 
 <div class="overlay" id="overlay">
   <div class="card">
-    <h2>Niveau terminé !</h2>
+    <h2 id="overlay-title">Niveau terminé !</h2>
     <p id="summary"></p>
-    <p style="font-size:0.66rem;color:var(--muted);margin:-8px 0 12px;">Le niveau suivant démarre automatiquement...</p>
+    <p id="overlay-note" style="font-size:0.66rem;color:var(--muted);margin:-8px 0 12px;">Le niveau suivant démarre automatiquement...</p>
     <button class="btn secondary" id="restart">Recommencer au niveau 1 (tout réinitialiser)</button>
   </div>
 </div>
@@ -435,6 +455,14 @@
     <h2 style="text-align:center;">Succès</h2>
     <div id="ach-list"></div>
     <button class="btn" id="ach-close-btn" style="margin-top:12px;">Fermer</button>
+  </div>
+</div>
+
+<div class="overlay" id="stats-overlay">
+  <div class="card" style="max-width:340px; text-align:left; max-height:80vh; overflow-y:auto;">
+    <h2 style="text-align:center;">Statistiques &amp; records</h2>
+    <div id="stats-list"></div>
+    <button class="btn" id="stats-close-btn" style="margin-top:12px;">Fermer</button>
   </div>
 </div>
 
@@ -448,6 +476,8 @@
       <button class="theme-btn" data-theme="dark">Sombre</button>
     </div>
 
+    <button class="btn secondary" id="settings-stats-btn" style="margin-top:6px;">📊 Statistiques &amp; records</button>
+
     <div class="section-label">Raccourcis clavier (ordinateur)</div>
     <div id="keybind-list"></div>
     <button class="btn secondary" id="keybind-reset-btn">Réinitialiser les raccourcis</button>
@@ -460,7 +490,7 @@
 
 <script>
 (function(){
-  const SAVE_KEY='clavierPerduSaveV11';
+  const SAVE_KEY='clavierPerduSaveV12';
   const THEME_KEY='clavierPerduTheme';
   const COLORS=[
     {id:'rouge', label:'Rouge', hex:'#c0392b'},
@@ -552,8 +582,8 @@
   // Rappel de couleur: progressive tiers. Tier 1 recalls a single piece per
   // use; each further tier recalls one more piece AND shortens the cooldown,
   // down to a floor, up to COLOR_RECALL_MAX_TIER.
-  const COLOR_RECALL_BASE_COST=200, COLOR_RECALL_COST_STEP=100, COLOR_RECALL_MAX_TIER=5;
-  const COLOR_RECALL_BASE_COOLDOWN_MS=30000, COLOR_RECALL_COOLDOWN_STEP_MS=5000, COLOR_RECALL_MIN_COOLDOWN_MS=10000;
+  const COLOR_RECALL_BASE_COST=200, COLOR_RECALL_COST_STEP=100, COLOR_RECALL_MAX_TIER=13;
+  const COLOR_RECALL_BASE_COOLDOWN_MS=30000, COLOR_RECALL_COOLDOWN_STEP_MS=2000, COLOR_RECALL_MIN_COOLDOWN_MS=6000;
   const PRICE_TIER_BASE_COST=100, PRICE_TIER_COST_STEP=50, PRICE_TIER_INCREMENT=0.25, PRICE_TIER_MAX=5, PRICE_UNLOCK_LEVEL=6;
 
   function colorOf(id){ return COLORS.find(c=>c.id===id); }
@@ -619,7 +649,16 @@
     {id:'tout_automatise', cat:'Économie', label:'Tout automatisé', desc:'Acheter l\u2019Aimant et le Téléporteur'},
     {id:'niveau_max', cat:'Progression', label:'Maître du clavier', desc:'Atteindre le niveau maximum (16 couleurs)'},
     {id:'valeur_max', cat:'Économie', label:'Touches en or', desc:'Amener la valeur des touches à son maximum (5$)'},
-    {id:'rappel_max', cat:'Économie', label:'Signal fort', desc:'Améliorer le Rappel de couleur jusqu\u2019à son niveau maximum'}
+    {id:'rappel_max', cat:'Économie', label:'Signal fort', desc:'Améliorer le Rappel de couleur jusqu\u2019à son niveau maximum'},
+    {id:'aimant_max', cat:'Économie', label:'Aimant surpuissant', desc:'Amener la portée de l\u2019Aimant à son maximum'},
+    {id:'niveau_5', cat:'Progression', label:'Sur la bonne voie', desc:'Atteindre le niveau 5'},
+    {id:'niveau_10', cat:'Progression', label:'Presque au sommet', desc:'Atteindre le niveau 10'},
+    {id:'commande_1', cat:'Commandes & événements', label:'Bon de commande', desc:'Réussir une commande'},
+    {id:'commandes_10', cat:'Commandes & événements', label:'Fournisseur attitré', desc:'Réussir 10 commandes au total'},
+    {id:'tresor_5', cat:'Commandes & événements', label:'Chasseur de trésors', desc:'Ramasser 5 événements bonus sur la carte'},
+    {id:'record_battu', cat:'Commandes & événements', label:'Toujours plus vite', desc:'Battre ton propre meilleur temps sur un niveau'},
+    {id:'defi_1', cat:'Défis', label:'Relève le défi', desc:'Réussir un défi après le niveau maximum'},
+    {id:'defi_3', cat:'Défis', label:'Champion', desc:'Réussir 3 défis d\u2019affilée'}
   ];
   const ACH_KEY='clavierPerduAchievementsV1';
   function loadAchievements(){
@@ -635,15 +674,38 @@
   let achievements = loadAchievements();
   function saveAchievements(){ try{ localStorage.setItem(ACH_KEY, JSON.stringify(achievements)); }catch(e){} }
 
-  function showAchievementToast(id){
-    const ach=ACHIEVEMENTS.find(a=>a.id===id);
-    if(!ach) return;
+  function showGameToast(text){
     const el=document.getElementById('ach-toast');
-    el.textContent = '\uD83C\uDFC6 Succès débloqué : ' + ach.label;
+    if(!el) return;
+    el.textContent = text;
     el.classList.remove('hidden');
     requestAnimationFrame(()=>el.classList.add('show'));
     clearTimeout(el._timer);
     el._timer=setTimeout(()=>{ el.classList.remove('show'); }, 2600);
+  }
+  function showAchievementToast(id){
+    const ach=ACHIEVEMENTS.find(a=>a.id===id);
+    if(!ach) return;
+    showGameToast('\uD83C\uDFC6 Succès débloqué : ' + ach.label);
+  }
+
+  // ---------- persistent stats & records (survive resets, like achievements) ----------
+  const STATS_KEY='clavierPerduStatsV1';
+  function defaultStats(){ return { levels:{}, totalPlayMs:0, levelsCompleted:0, ordersDone:0, events:0, challengesDone:0, bestChallenge:0 }; }
+  function loadStats(){
+    try{
+      const raw=localStorage.getItem(STATS_KEY);
+      if(!raw) return defaultStats();
+      const parsed=JSON.parse(raw);
+      return Object.assign(defaultStats(), parsed, { levels: (parsed && parsed.levels) || {} });
+    }catch(e){ return defaultStats(); }
+  }
+  let stats = loadStats();
+  function saveStats(){ try{ localStorage.setItem(STATS_KEY, JSON.stringify(stats)); }catch(e){} }
+  function formatTime(ms){
+    const total=Math.max(0, Math.floor(ms/1000));
+    const m=Math.floor(total/60), sec=total%60;
+    return m+':'+(sec<10?'0':'')+sec;
   }
   function unlockAchievement(id){
     if(achievements.unlocked[id]) return;
@@ -767,12 +829,18 @@
     return have>=total;
   }
 
-  function getTrayCap(){
+  function rawTrayCap(){
     return Math.min(BASE_CAP + state.trayUpgrades, MAX_CAP);
+  }
+  function getTrayCap(){
+    const cap = rawTrayCap();
+    // Challenge rule "Sac réduit": the bag only holds half of its normal capacity.
+    if(state && state.challenge && state.challenge.rule==='sac') return Math.max(BASE_CAP, Math.floor(cap/2));
+    return cap;
   }
   function upgradeCost(){ return (state.trayUpgrades+1)*10; }
   function buyTrayUpgrade(){
-    if(getTrayCap()>=MAX_CAP) return;
+    if(rawTrayCap()>=MAX_CAP) return;
     const cost=upgradeCost();
     if(state.money<cost) return;
     state.money-=cost; state.trayUpgrades++;
@@ -819,6 +887,302 @@
     state.colorRecallLevel = (state.colorRecallLevel||0)+1;
     renderAll();
   }
+
+
+  // ---------- Aimant : portée (paliers) ----------
+  const MAGNET_RANGE_BASE_COST=250, MAGNET_RANGE_COST_STEP=150, MAGNET_RANGE_MAX=3;
+  function magnetRange(){ return state.magnetRange||0; }
+  function magnetRangeMaxed(){ return magnetRange()>=MAGNET_RANGE_MAX; }
+  function magnetRangeCost(){ return MAGNET_RANGE_BASE_COST + MAGNET_RANGE_COST_STEP*magnetRange(); }
+  function buyMagnetRange(){
+    if(!state.hasMagnet || magnetRangeMaxed()) return;
+    const cost = magnetRangeCost();
+    if(state.money<cost) return;
+    state.money = Math.round((state.money-cost)*100)/100;
+    state.magnetRange = magnetRange()+1;
+    renderAll();
+  }
+
+  // ---------- Horloge de jeu ----------
+  let lastTickAt = Date.now();
+  function gameTick(){
+    const now = Date.now();
+    const dt = Math.min(1500, now-lastTickAt);
+    lastTickAt = now;
+    if(!state || state.levelOver) return;
+    const gameEl = document.getElementById('screen-game');
+    if(!gameEl || gameEl.classList.contains('hidden')) return;
+    state.elapsedMs = (state.elapsedMs||0) + dt;
+    advanceGameClock();
+  }
+  function advanceGameClock(){
+    if(!state || state.levelOver) return;
+    const elapsed = state.elapsedMs||0;
+    if(state.order && state.order.status!=='active' && elapsed>=(state.nextOrderAtMs||0)){
+      state.order = makeOrder(state.level, state.totalPlaced, state.mistakes, elapsed, activeColors());
+    }
+    evaluateOrder();
+    tickEvents();
+    checkChallengeFail();
+    renderOrderBanner();
+    renderChallengeBanner();
+  }
+  setInterval(gameTick, 500);
+
+  // ---------- Commandes (bonus en argent) ----------
+  const ORDER_RESOLVED_DELAY_MS=15000;
+  function orderReward(level){ return 30 + 15*(level||1); }
+  function makeOrder(level, placed, mistakes, nowMs, colorList){
+    const lvl = level||1;
+    const base = { status:'active', reward:orderReward(lvl), startPlaced:placed||0, startMistakes:mistakes||0, startedAtMs:nowMs||0 };
+    const roll = Math.random();
+    if(roll<0.34){
+      const count = Math.min(80, 20+4*lvl);
+      return Object.assign(base, { type:'rush', count, limitMs:count*8000 });
+    }
+    if(roll<0.67){
+      const count = Math.min(60, 15+3*lvl);
+      return Object.assign(base, { type:'flawless', count });
+    }
+    const td = themeDef('clavier');
+    const colors = colorList || COLORS;
+    const color = colors[Math.floor(Math.random()*colors.length)];
+    const zone = td.zones[Math.floor(Math.random()*td.zones.length)];
+    return Object.assign(base, { type:'zone', colorId:color.id, zone, limitMs:zoneSize(td, zone)*12000 });
+  }
+  function orderTarget(o){
+    return o.type==='zone' ? zoneSize(themeDef(), o.zone) : o.count;
+  }
+  function orderProgress(o){
+    if(o.type==='zone'){
+      if(!state.keyboards[o.colorId]) return 0;
+      return zoneCount(themeDef(), o.colorId, o.zone);
+    }
+    return Math.max(0, state.totalPlaced - o.startPlaced);
+  }
+  function describeOrder(o){
+    if(o.type==='rush') return 'place '+o.count+' touches en '+formatTime(o.limitMs);
+    if(o.type==='flawless') return 'place '+o.count+' touches d’affilée sans aucune erreur';
+    const td = themeDef();
+    return 'complète « '+td.zoneLabel[o.zone]+' » de l’étagère '+colorOf(o.colorId).label.toLowerCase()+' en '+formatTime(o.limitMs);
+  }
+  function evaluateOrder(){
+    const o = state && state.order;
+    if(!o || o.status!=='active' || state.levelOver) return;
+    const elapsed = (state.elapsedMs||0) - o.startedAtMs;
+    const prog = orderProgress(o);
+    if(o.type==='flawless'){
+      if(state.mistakes>o.startMistakes) return resolveOrder('failed');
+      if(prog>=o.count) return resolveOrder('done');
+      return;
+    }
+    if(prog>=orderTarget(o)) return resolveOrder('done');
+    if(elapsed>=o.limitMs) return resolveOrder('failed');
+  }
+  function resolveOrder(status){
+    const o = state.order;
+    o.status = status;
+    state.nextOrderAtMs = (state.elapsedMs||0) + ORDER_RESOLVED_DELAY_MS;
+    if(status==='done'){
+      state.money = Math.round((state.money+o.reward)*100)/100;
+      stats.ordersDone = (stats.ordersDone||0)+1;
+      saveStats();
+      unlockAchievement('commande_1');
+      if(stats.ordersDone>=10) unlockAchievement('commandes_10');
+      showGameToast('📦 Commande réussie ! +'+formatMoney(o.reward)+'$');
+    } else {
+      showGameToast('⏱️ Commande ratée...');
+    }
+    renderOrderBanner();
+  }
+  function renderOrderBanner(){
+    const el = document.getElementById('order-banner');
+    if(!el || !state) return;
+    const o = state.order;
+    if(!o){ el.classList.add('hidden'); return; }
+    el.classList.remove('hidden','done','failed');
+    if(o.status==='done'){
+      el.classList.add('done');
+      el.textContent = '✓ Commande réussie : +'+formatMoney(o.reward)+'$';
+      return;
+    }
+    if(o.status==='failed'){
+      el.classList.add('failed');
+      el.textContent = '✗ Commande ratée — la prochaine arrive bientôt';
+      return;
+    }
+    let txt = '📦 Commande : '+describeOrder(o)+' — '+orderProgress(o)+'/'+orderTarget(o);
+    if(o.limitMs) txt += ' · '+formatTime(Math.max(0, o.limitMs-((state.elapsedMs||0)-o.startedAtMs)));
+    txt += ' · +'+formatMoney(o.reward)+'$';
+    el.textContent = txt;
+  }
+
+  // ---------- Événements sur la carte ----------
+  const EVENT_MIN_GAP_MS=30000, EVENT_MAX_GAP_MS=60000, EVENT_LIFETIME_MS=25000;
+  function scheduleNextEvent(){
+    state.nextEventAtMs = (state.elapsedMs||0) + EVENT_MIN_GAP_MS + Math.random()*(EVENT_MAX_GAP_MS-EVENT_MIN_GAP_MS);
+  }
+  function spawnEvent(){
+    if(state.panel!=='map'){ state.nextEventAtMs = (state.elapsedMs||0)+3000; return; }
+    const free=[];
+    for(let y=0;y<state.rows;y++) for(let x=0;x<state.cols;x++){
+      const cell = state.grid[y][x];
+      const gp = state.groundPiles[x+','+y];
+      if(cell.type==='floor' && !(gp && gp.some(k=>!k.taken)) && !(state.player.x===x && state.player.y===y)) free.push({x,y});
+    }
+    if(!free.length){ scheduleNextEvent(); return; }
+    const pos = free[Math.floor(Math.random()*free.length)];
+    let type='tresor';
+    if(colorRecallOwned() && colorRecallOnCooldown() && Math.random()<0.5) type='recharge';
+    state.event = { type, x:pos.x, y:pos.y, expiresAtMs:(state.elapsedMs||0)+EVENT_LIFETIME_MS };
+    showGameToast(type==='tresor' ? '✨ Un trésor est apparu sur la carte !' : '📡 Une recharge est apparue sur la carte !');
+    renderMap();
+  }
+  function tickEvents(){
+    const elapsed = state.elapsedMs||0;
+    if(state.event){
+      if(elapsed>=state.event.expiresAtMs){
+        state.event = null;
+        scheduleNextEvent();
+      }
+      if(state.panel==='map') renderMap();
+    } else if(elapsed>=(state.nextEventAtMs||0)){
+      spawnEvent();
+    }
+  }
+  function collectEventIfHere(){
+    const ev = state.event;
+    if(!ev || ev.x!==state.player.x || ev.y!==state.player.y) return;
+    state.event = null;
+    scheduleNextEvent();
+    if(ev.type==='tresor'){
+      const gain = 10 + 5*(state.level||1);
+      state.money = Math.round((state.money+gain)*100)/100;
+      showGameToast('💰 Trésor ramassé ! +'+gain+'$');
+    } else {
+      state.colorRecallCooldownUntil = 0;
+      showGameToast('📡 Recharge ! Ton Rappel de couleur est prêt.');
+    }
+    stats.events = (stats.events||0)+1;
+    saveStats();
+    if(stats.events>=5) unlockAchievement('tresor_5');
+  }
+
+  // ---------- Mode défi (après le niveau maximum) ----------
+  const CHALLENGE_RULES=['sac','vies','chrono'];
+  function makeChallenge(n, prevRule){
+    const pool = CHALLENGE_RULES.filter(r=>r!==prevRule);
+    const rule = pool[Math.floor(Math.random()*pool.length)];
+    const ch = { n, rule };
+    if(rule==='vies') ch.lives = Math.max(2, 5-Math.floor((n-1)/2));
+    if(rule==='chrono') ch.limitMs = Math.max(20*60000, (40-3*(n-1))*60000);
+    return ch;
+  }
+  function challengeLabel(ch){
+    if(ch.rule==='sac') return 'Sac réduit (capacité divisée par 2)';
+    if(ch.rule==='vies') return ch.lives+' vies (une erreur = une vie perdue)';
+    return 'Contre la montre ('+formatTime(ch.limitMs)+')';
+  }
+  function renderChallengeBanner(){
+    const el = document.getElementById('challenge-banner');
+    if(!el || !state) return;
+    const ch = state.challenge;
+    if(!ch){ el.classList.add('hidden'); return; }
+    el.classList.remove('hidden');
+    let txt = '⚔️ Défi '+ch.n+' — ';
+    if(ch.rule==='sac') txt += 'Sac réduit : capacité '+getTrayCap();
+    else if(ch.rule==='vies'){
+      const left = Math.max(0, ch.lives-state.mistakes);
+      txt += 'Vies : '+'❤'.repeat(left)+' ('+left+'/'+ch.lives+')';
+    } else {
+      txt += 'Temps restant : '+formatTime(Math.max(0, ch.limitMs-(state.elapsedMs||0)));
+    }
+    el.textContent = txt;
+  }
+  function checkChallengeFail(){
+    const ch = state && state.challenge;
+    if(!ch || state.levelOver) return;
+    if(ch.rule==='vies' && state.mistakes>=ch.lives) return failChallenge('Plus aucune vie');
+    if(ch.rule==='chrono' && (state.elapsedMs||0)>=ch.limitMs) return failChallenge('Temps écoulé');
+  }
+  function keepFromState(){
+    return { money:state.money, trayUpgrades:state.trayUpgrades, hasMagnet:state.hasMagnet, magnetActive:state.magnetActive, magnetRange:state.magnetRange||0, hasTeleport:state.hasTeleport, hasAutoSort:state.hasAutoSort, priceLevel:state.priceLevel, colorRecallLevel:state.colorRecallLevel, round:state.round||1 };
+  }
+  function failChallenge(reason){
+    state.levelOver = true;
+    const ch = state.challenge;
+    stats.totalPlayMs = (stats.totalPlayMs||0) + (state.elapsedMs||0);
+    saveStats();
+    document.getElementById('overlay-title').textContent = 'Défi '+ch.n+' raté';
+    document.getElementById('summary').textContent = reason+' — '+challengeLabel(ch)+'. Tu recommences ce défi avec toutes tes améliorations.';
+    document.getElementById('overlay-note').textContent = 'Nouvelle tentative dans un instant...';
+    document.getElementById('overlay').classList.add('show');
+    clearSave();
+    clearTimeout(levelAdvanceTimer);
+    levelAdvanceTimer = setTimeout(()=>{ retryChallenge(); }, 2600);
+  }
+  function retryChallenge(){
+    const ch = Object.assign({}, state.challenge);
+    const keep = keepFromState();
+    state = freshRoundState(keep, MAX_LEVEL, ch);
+    document.getElementById('overlay').classList.remove('show');
+    updateHudMode();
+    renderAll();
+  }
+
+  // ---------- Statistiques & records ----------
+  function recordLevelStats(){
+    const key = state.challenge ? 'defi' : String(state.level||1);
+    const ms = state.elapsedMs||0;
+    const placed = state.totalPlaced;
+    const acc = placed>0 ? placed/(placed+state.mistakes) : 0;
+    const prev = stats.levels[key] || { best:null, bestAcc:0, plays:0 };
+    const beatPrev = prev.best!==null && ms<prev.best;
+    stats.levels[key] = {
+      best: (prev.best===null || ms<prev.best) ? ms : prev.best,
+      bestAcc: Math.max(prev.bestAcc||0, acc),
+      plays: (prev.plays||0)+1
+    };
+    stats.totalPlayMs = (stats.totalPlayMs||0)+ms;
+    stats.levelsCompleted = (stats.levelsCompleted||0)+1;
+    saveStats();
+    if(beatPrev) unlockAchievement('record_battu');
+    return { ms, acc, newTime:beatPrev };
+  }
+  function renderStatsList(){
+    const list = document.getElementById('stats-list');
+    if(!list) return;
+    list.innerHTML='';
+    function row(a,b){
+      const r=document.createElement('div'); r.className='stats-row';
+      const l=document.createElement('span'); l.textContent=a;
+      const v=document.createElement('span'); v.textContent=b;
+      r.appendChild(l); r.appendChild(v); list.appendChild(r);
+    }
+    function label(t){ const d=document.createElement('div'); d.className='ach-cat-label'; d.textContent=t; list.appendChild(d); }
+    label('Général');
+    row('Temps de jeu total', formatTime(stats.totalPlayMs||0));
+    row('Niveaux terminés', String(stats.levelsCompleted||0));
+    row('Commandes réussies', String(stats.ordersDone||0));
+    row('Événements ramassés', String(stats.events||0));
+    row('Défis réussis', String(stats.challengesDone||0)+(stats.bestChallenge?' (meilleur : défi '+stats.bestChallenge+')':''));
+    label('Meilleurs temps par niveau');
+    let any=false;
+    for(let lvl=1; lvl<=MAX_LEVEL; lvl++){
+      const rec = stats.levels[String(lvl)];
+      if(!rec) continue;
+      any=true;
+      row('Niv. '+lvl+' ('+colorsForLevel(lvl).length+' coul.)', formatTime(rec.best)+' · '+Math.round((rec.bestAcc||0)*100)+'% · '+rec.plays+'x');
+    }
+    if(stats.levels['defi']){
+      any=true;
+      const rec=stats.levels['defi'];
+      row('Défis', formatTime(rec.best)+' · '+Math.round((rec.bestAcc||0)*100)+'% · '+rec.plays+'x');
+    }
+    if(!any) row('Aucun niveau terminé pour l’instant', '—');
+  }
+  function openStats(){ renderStatsList(); document.getElementById('stats-overlay').classList.add('show'); }
+  function closeStats(){ document.getElementById('stats-overlay').classList.remove('show'); }
 
   function perPieceValue(){
     return Math.min(PRICE_TIER_MAX, 1 + PRICE_TIER_INCREMENT*(state.priceLevel||0));
@@ -942,7 +1306,7 @@
     return {grid, start, cols:C, rows:R};
   }
 
-  function freshRoundState(keep, level){
+  function freshRoundState(keep, level, challenge){
     const mode = 'souscla';
     const theme = 'clavier';
     const lvl = Math.max(1, Math.min(level || 1, MAX_LEVEL));
@@ -965,13 +1329,20 @@
       priceLevel: keep ? keep.priceLevel : 0,
       colorRecallLevel: keep ? keep.colorRecallLevel : 0,
       colorRecallCooldownUntil: 0,
+      magnetRange: keep ? (keep.magnetRange||0) : 0,
+      elapsedMs: 0, levelOver: false,
+      order: makeOrder(lvl, 0, 0, 0, colorList), nextOrderAtMs: 0,
+      event: null, nextEventAtMs: EVENT_MIN_GAP_MS + Math.random()*(EVENT_MAX_GAP_MS-EVENT_MIN_GAP_MS),
+      challenge: challenge || null,
       round: keep ? keep.round+1 : 1,
       panel:'map', activeShelf:null
     };
   }
 
   function updateHudMode(){
-    document.getElementById('hud-mode').textContent = 'Niv. '+state.level+' ('+activeColors().length+' coul.)';
+    document.getElementById('hud-mode').textContent = state.challenge
+      ? 'Défi '+state.challenge.n
+      : 'Niv. '+state.level+' ('+activeColors().length+' coul.)';
   }
 
   let pendingKeep = null;
@@ -988,10 +1359,19 @@
   }
 
   function nextLevel(){
-    const keep = { money:state.money, trayUpgrades:state.trayUpgrades, hasMagnet:state.hasMagnet, magnetActive:state.magnetActive, hasTeleport:state.hasTeleport, hasAutoSort:state.hasAutoSort, priceLevel:state.priceLevel, colorRecallLevel:state.colorRecallLevel, round:state.round||1 };
+    const keep = keepFromState();
     let nextLvl = (state.level||1) + 1;
-    if(nextLvl > MAX_LEVEL) nextLvl = 1;
-    state = freshRoundState(keep, nextLvl);
+    let challenge = null;
+    if(state.challenge){
+      // Already in challenge mode: next challenge, with a different rule.
+      challenge = makeChallenge(state.challenge.n+1, state.challenge.rule);
+      nextLvl = MAX_LEVEL;
+    } else if(nextLvl > MAX_LEVEL){
+      // Finished the last level: challenge mode replaces the old loop to level 1.
+      challenge = makeChallenge(1, null);
+      nextLvl = MAX_LEVEL;
+    }
+    state = freshRoundState(keep, nextLvl, challenge);
     document.getElementById('overlay').classList.remove('show');
     updateHudMode();
     renderAll();
@@ -1103,6 +1483,14 @@
       if(typeof state.priceLevel!=='number') state.priceLevel=0;
       if(typeof state.colorRecallLevel!=='number') state.colorRecallLevel=0;
       if(typeof state.colorRecallCooldownUntil!=='number') state.colorRecallCooldownUntil=0;
+      if(typeof state.magnetRange!=='number') state.magnetRange=0;
+      if(typeof state.elapsedMs!=='number') state.elapsedMs=0;
+      state.levelOver = false;
+      if(!state.challenge || typeof state.challenge!=='object') state.challenge=null;
+      if(!state.order || typeof state.order!=='object') state.order = makeOrder(state.level, state.totalPlaced||0, state.mistakes||0, state.elapsedMs, activeColors());
+      if(typeof state.nextOrderAtMs!=='number') state.nextOrderAtMs=0;
+      if(!state.event || typeof state.event!=='object') state.event=null;
+      if(typeof state.nextEventAtMs!=='number') state.nextEventAtMs = state.elapsedMs + EVENT_MIN_GAP_MS;
       if(typeof state.cols!=='number' || typeof state.rows!=='number'){
         // Derive from the actual saved grid shape when present (safest), else
         // fall back to what the level would normally generate.
@@ -1140,6 +1528,7 @@
     const nx=state.player.x+dx, ny=state.player.y+dy;
     if(nx<0||ny<0||nx>=state.cols||ny>=state.rows) return;
     state.player.x=nx; state.player.y=ny;
+    collectEventIfHere();
     renderAll();
   }
 
@@ -1159,16 +1548,34 @@
     return {source:'ground', arr:state.groundPiles[coordKey], coordKey};
   }
 
+  // Collects from the pile under the player and, with range upgrades, from
+  // piles up to magnetRange() cells away (Manhattan distance), nearest first.
   function autoCollectIfMagnet(){
-    if(!state.hasMagnet || !state.magnetActive) return;
-    const info = currentPileInfo();
-    if(!info.arr) return;
-    info.arr.forEach((k,idx)=>{
-      if(!k.taken && state.tray.length<getTrayCap()){
-        info.arr[idx] = {taken:true};
-        state.tray.push(k);
+    if(!state.hasMagnet || !state.magnetActive) return 0;
+    const r = magnetRange();
+    const cells=[];
+    for(let dy=-r; dy<=r; dy++) for(let dx=-r; dx<=r; dx++){
+      const d = Math.abs(dx)+Math.abs(dy);
+      const nx = state.player.x+dx, ny = state.player.y+dy;
+      if(d>r || nx<0 || ny<0 || nx>=state.cols || ny>=state.rows) continue;
+      cells.push({x:nx, y:ny, d});
+    }
+    cells.sort((a,b)=>a.d-b.d);
+    let collected=0;
+    cells.forEach(c=>{
+      const cell = state.grid[c.y][c.x];
+      const arr = cell.type==='cache' ? cell.keys : state.groundPiles[c.x+','+c.y];
+      if(!arr) return;
+      for(let i=0; i<arr.length && state.tray.length<getTrayCap(); i++){
+        const k = arr[i];
+        if(k && !k.taken){
+          arr[i] = {taken:true};
+          state.tray.push(k);
+          collected++;
+        }
       }
     });
+    return collected;
   }
 
   function enterCurrentTile(){
@@ -1231,16 +1638,23 @@
   }
 
   function renderHud(){
+    evaluateOrder();
+    checkChallengeFail();
+    renderOrderBanner();
+    renderChallengeBanner();
     document.getElementById('hud-placed').textContent = state.totalPlaced+'/'+themeTotalCount(state.theme);
     document.getElementById('hud-tray').textContent = state.tray.length+'/'+getTrayCap();
     document.getElementById('hud-money').textContent = formatMoney(state.money);
     document.getElementById('hud-mistakes').textContent = state.mistakes;
     document.getElementById('save-status').textContent = state._lastSaveOk===false ? '\u26A0\uFE0F Sauvegarde impossible sur cet appareil/navigateur' : '';
     if(state.money>=1000) unlockAchievement('richissime');
-    if(getTrayCap()>=MAX_CAP) unlockAchievement('sac_xxl');
+    if(rawTrayCap()>=MAX_CAP) unlockAchievement('sac_xxl');
     if(state.hasMagnet && state.hasTeleport) unlockAchievement('tout_automatise');
     if((state.level||1)>=MAX_LEVEL) unlockAchievement('niveau_max');
     if(priceTierMaxed()) unlockAchievement('valeur_max');
+    if((state.level||1)>=5) unlockAchievement('niveau_5');
+    if((state.level||1)>=10) unlockAchievement('niveau_10');
+    if(state.hasMagnet && magnetRangeMaxed()) unlockAchievement('aimant_max');
     if(colorRecallMaxed()) unlockAchievement('rappel_max');
   }
 
@@ -1372,7 +1786,7 @@
 
   function renderShopButtons(){
     const capBtn=document.getElementById('shop-upgrade-btn');
-    if(getTrayCap()>=MAX_CAP){
+    if(rawTrayCap()>=MAX_CAP){
       capBtn.textContent='Capacité maximale atteinte';
       capBtn.disabled=true;
     } else {
@@ -1392,6 +1806,19 @@
       magnetBtn.textContent="Acheter l'Aimant (ramassage à la demande) — "+MAGNET_COST+'$';
       magnetBtn.disabled = state.money<MAGNET_COST; magnetBtn.classList.remove('owned');
       magnetBtn.onclick = buyMagnet;
+    }
+
+    const mrBtn=document.getElementById('shop-magnet-range-btn');
+    mrBtn.classList.toggle('hidden', !state.hasMagnet);
+    if(state.hasMagnet){
+      if(magnetRangeMaxed()){
+        mrBtn.textContent='Portée de l\u2019Aimant au maximum ('+MAGNET_RANGE_MAX+') \u2713';
+        mrBtn.disabled=true; mrBtn.classList.add('owned');
+      } else {
+        const cost = magnetRangeCost();
+        mrBtn.textContent='Augmenter la portée de l\u2019Aimant (portée '+magnetRange()+' \u2192 '+(magnetRange()+1)+', ramasse les piles voisines) \u2014 '+cost+'$';
+        mrBtn.disabled = state.money<cost; mrBtn.classList.remove('owned');
+      }
     }
 
     const tpBtn=document.getElementById('shop-teleport-btn');
@@ -1506,6 +1933,11 @@
         } else {
           const gp = state.groundPiles[x+','+y];
           if(gp && gp.some(k=>!k.taken)){ cls+=' cache'; mosaicArr=gp; }
+          else if(state.event && state.event.x===x && state.event.y===y){
+            cls += ' event event-'+state.event.type;
+            if(state.event.expiresAtMs-(state.elapsedMs||0) < 6000) cls += ' event-fading';
+            ch = state.event.type==='tresor' ? '$' : '\u26A1';
+          }
           else ch='.';
         }
         if(state.player.x===x && state.player.y===y){
@@ -1566,8 +1998,10 @@
 
   function manualMagnetCollect(){
     if(!state.hasMagnet || !state.magnetActive) return;
-    autoCollectIfMagnet();
+    const n = autoCollectIfMagnet();
     renderAll();
+    const toastEl = document.getElementById('cache-toast');
+    if(toastEl) toastEl.textContent = n>0 ? n+' touche(s) ramassée(s) par l’Aimant' : 'Rien à ramasser (sac plein ou piles vides).';
   }
 
   function renderShelfGroundPile(container, coordKey){
@@ -1843,8 +2277,33 @@
 
   let levelAdvanceTimer = null;
   function checkWin(){
+    if(state.levelOver) return;
     if(state.totalPlaced>=themeTotalCount(state.theme)){
-      document.getElementById('summary').textContent = 'Niveau '+(state.level||1)+' terminé ('+activeColors().length+' couleurs). Score : '+state.score+' &middot; Erreurs : '+state.mistakes+' &middot; Argent : '+formatMoney(state.money)+'$';
+      state.levelOver = true;
+      const ch = state.challenge;
+      const res = recordLevelStats();
+      const timeAcc = 'Temps : '+formatTime(res.ms)+' \u00b7 Précision : '+Math.round(res.acc*100)+'%';
+      let title, summary, note;
+      if(ch){
+        const bonus = 300*ch.n;
+        state.money = Math.round((state.money+bonus)*100)/100;
+        stats.challengesDone = (stats.challengesDone||0)+1;
+        stats.bestChallenge = Math.max(stats.bestChallenge||0, ch.n);
+        saveStats();
+        unlockAchievement('defi_1');
+        if(ch.n>=3) unlockAchievement('defi_3');
+        title = 'Défi '+ch.n+' réussi !';
+        summary = timeAcc+' \u00b7 Bonus de défi : +'+bonus+'$ \u00b7 Argent : '+formatMoney(state.money)+'$';
+        note = 'Le prochain défi démarre automatiquement...';
+      } else {
+        title = 'Niveau terminé !';
+        summary = 'Niveau '+(state.level||1)+' terminé ('+activeColors().length+' couleurs). '+timeAcc+' \u00b7 Score : '+state.score+' \u00b7 Erreurs : '+state.mistakes+' \u00b7 Argent : '+formatMoney(state.money)+'$';
+        note = (state.level||1)>=MAX_LEVEL ? 'Le premier défi démarre automatiquement...' : 'Le niveau suivant démarre automatiquement...';
+      }
+      if(res.newTime) summary += ' \u00b7 \uD83C\uDFC6 Nouveau record !';
+      document.getElementById('overlay-title').textContent = title;
+      document.getElementById('summary').textContent = summary;
+      document.getElementById('overlay-note').textContent = note;
       document.getElementById('overlay').classList.add('show');
       unlockAchievement('collection_complete');
       achievements.totalRounds = (achievements.totalRounds||0) + 1;
@@ -1884,6 +2343,10 @@
   document.getElementById('shop-autosort-btn').addEventListener('click', buyAutoSort);
   document.getElementById('shop-recall-btn').addEventListener('click', buyColorRecallTier);
   document.getElementById('shop-price-btn').addEventListener('click', buyPriceTier);
+  document.getElementById('shop-magnet-range-btn').addEventListener('click', buyMagnetRange);
+  document.getElementById('stats-open-btn-home').addEventListener('click', openStats);
+  document.getElementById('stats-close-btn').addEventListener('click', closeStats);
+  document.getElementById('settings-stats-btn').addEventListener('click', openStats);
   document.getElementById('restart').addEventListener('click', restartFromLevel1);
 
   // --- Map pinch-to-zoom ---
