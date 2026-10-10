@@ -359,6 +359,7 @@
             <div class="shop-row">
               <button class="shop-btn" id="shop-upgrade-btn">Améliorer la capacité du sac (+1) — 10$</button>
               <button class="shop-btn hidden" id="shop-magnet-range-btn">Augmenter la portée de l'Aimant</button>
+              <button class="shop-btn hidden" id="shop-magnet-range-toggle-btn">Portée de l'Aimant : Active</button>
               <button class="shop-btn" id="shop-magnet-btn">Acheter l'Aimant (ramassage à la demande) — 150$</button>
               <button class="shop-btn" id="shop-teleport-btn">Acheter le Téléporteur (voyage rapide) — 300$</button>
               <button class="shop-btn" id="shop-autosort-btn">Acheter le Classement automatique — 500$</button>
@@ -892,6 +893,12 @@
   // ---------- Aimant : portée (paliers) ----------
   const MAGNET_RANGE_BASE_COST=250, MAGNET_RANGE_COST_STEP=150, MAGNET_RANGE_MAX=3;
   function magnetRange(){ return state.magnetRange||0; }
+  function effectiveMagnetRange(){ return state.magnetRangeActive===false ? 0 : magnetRange(); }
+  function toggleMagnetRange(){
+    if(!state.hasMagnet || magnetRange()<1) return;
+    state.magnetRangeActive = state.magnetRangeActive===false;
+    renderAll();
+  }
   function magnetRangeMaxed(){ return magnetRange()>=MAGNET_RANGE_MAX; }
   function magnetRangeCost(){ return MAGNET_RANGE_BASE_COST + MAGNET_RANGE_COST_STEP*magnetRange(); }
   function buyMagnetRange(){
@@ -1106,7 +1113,7 @@
     if(ch.rule==='chrono' && (state.elapsedMs||0)>=ch.limitMs) return failChallenge('Temps écoulé');
   }
   function keepFromState(){
-    return { money:state.money, trayUpgrades:state.trayUpgrades, hasMagnet:state.hasMagnet, magnetActive:state.magnetActive, magnetRange:state.magnetRange||0, hasTeleport:state.hasTeleport, hasAutoSort:state.hasAutoSort, priceLevel:state.priceLevel, colorRecallLevel:state.colorRecallLevel, round:state.round||1 };
+    return { money:state.money, trayUpgrades:state.trayUpgrades, hasMagnet:state.hasMagnet, magnetActive:state.magnetActive, magnetRange:state.magnetRange||0, magnetRangeActive:state.magnetRangeActive!==false, hasTeleport:state.hasTeleport, hasAutoSort:state.hasAutoSort, priceLevel:state.priceLevel, colorRecallLevel:state.colorRecallLevel, round:state.round||1 };
   }
   function failChallenge(reason){
     state.levelOver = true;
@@ -1330,6 +1337,7 @@
       colorRecallLevel: keep ? keep.colorRecallLevel : 0,
       colorRecallCooldownUntil: 0,
       magnetRange: keep ? (keep.magnetRange||0) : 0,
+      magnetRangeActive: keep ? keep.magnetRangeActive!==false : true,
       elapsedMs: 0, levelOver: false,
       order: makeOrder(lvl, 0, 0, 0, colorList), nextOrderAtMs: 0,
       event: null, nextEventAtMs: EVENT_MIN_GAP_MS + Math.random()*(EVENT_MAX_GAP_MS-EVENT_MIN_GAP_MS),
@@ -1484,6 +1492,7 @@
       if(typeof state.colorRecallLevel!=='number') state.colorRecallLevel=0;
       if(typeof state.colorRecallCooldownUntil!=='number') state.colorRecallCooldownUntil=0;
       if(typeof state.magnetRange!=='number') state.magnetRange=0;
+      if(typeof state.magnetRangeActive!=='boolean') state.magnetRangeActive=true;
       if(typeof state.elapsedMs!=='number') state.elapsedMs=0;
       state.levelOver = false;
       if(!state.challenge || typeof state.challenge!=='object') state.challenge=null;
@@ -1552,7 +1561,7 @@
   // piles up to magnetRange() cells away (Manhattan distance), nearest first.
   function autoCollectIfMagnet(){
     if(!state.hasMagnet || !state.magnetActive) return 0;
-    const r = magnetRange();
+    const r = effectiveMagnetRange();
     const cells=[];
     for(let dy=-r; dy<=r; dy++) for(let dx=-r; dx<=r; dx++){
       const d = Math.abs(dx)+Math.abs(dy);
@@ -1819,6 +1828,15 @@
         mrBtn.textContent='Augmenter la portée de l\u2019Aimant (portée '+magnetRange()+' \u2192 '+(magnetRange()+1)+', ramasse les piles voisines) \u2014 '+cost+'$';
         mrBtn.disabled = state.money<cost; mrBtn.classList.remove('owned');
       }
+    }
+
+    const mrtBtn=document.getElementById('shop-magnet-range-toggle-btn');
+    const showMrt = state.hasMagnet && magnetRange()>=1;
+    mrtBtn.classList.toggle('hidden', !showMrt);
+    if(showMrt){
+      const on = state.magnetRangeActive!==false;
+      mrtBtn.textContent = on ? 'Portée de l\u2019Aimant : Active \u26A1 (touche pour désactiver)' : 'Portée de l\u2019Aimant : Inactive (touche pour activer)';
+      mrtBtn.disabled=false; mrtBtn.classList.toggle('owned', on);
     }
 
     const tpBtn=document.getElementById('shop-teleport-btn');
@@ -2344,6 +2362,7 @@
   document.getElementById('shop-recall-btn').addEventListener('click', buyColorRecallTier);
   document.getElementById('shop-price-btn').addEventListener('click', buyPriceTier);
   document.getElementById('shop-magnet-range-btn').addEventListener('click', buyMagnetRange);
+  document.getElementById('shop-magnet-range-toggle-btn').addEventListener('click', toggleMagnetRange);
   document.getElementById('stats-open-btn-home').addEventListener('click', openStats);
   document.getElementById('stats-close-btn').addEventListener('click', closeStats);
   document.getElementById('settings-stats-btn').addEventListener('click', openStats);
