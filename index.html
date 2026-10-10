@@ -394,7 +394,10 @@
       <button class="btn secondary top-close" id="cache-close">Retour à la carte</button>
       <h2 id="cache-title">Cache</h2>
       <div class="section-label" id="cache-subtitle"></div>
-      <button class="btn secondary" id="cache-magnet-btn" style="margin-bottom:10px;">🧲 Tout ramasser (Aimant)</button>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;">
+        <button class="btn secondary" id="cache-magnet-btn">🧲 Tout ramasser (Aimant)</button>
+        <button class="btn secondary" id="cache-magnet-toggle-btn">Aimant : Actif</button>
+      </div>
       <div class="key-grid" id="cache-grid"></div>
       <div class="toast" id="cache-toast"></div>
 
@@ -1960,7 +1963,10 @@
     const magnetBtn=document.getElementById('cache-magnet-btn');
     magnetBtn.classList.toggle('hidden', !state.hasMagnet);
     magnetBtn.disabled = !state.magnetActive;
-    magnetBtn.textContent = state.magnetActive ? '🧲 Tout ramasser (Aimant)' : '🧲 Aimant désactivé (active-le dans la Boutique)';
+    magnetBtn.textContent = state.magnetActive ? '🧲 Tout ramasser (Aimant)' : '🧲 Aimant désactivé';
+    const magnetToggle=document.getElementById('cache-magnet-toggle-btn');
+    magnetToggle.classList.toggle('hidden', !state.hasMagnet);
+    magnetToggle.textContent = state.magnetActive ? 'Aimant : Actif \u2014 désactiver' : 'Aimant : Inactif \u2014 activer';
     const grid = document.getElementById('cache-grid');
     const prevScroll = grid.scrollTop;
     grid.innerHTML='';
@@ -2332,6 +2338,7 @@
   document.getElementById('cache-close').addEventListener('click', ()=>{ state.panel='map'; renderAll(); });
   document.getElementById('shelf-close').addEventListener('click', ()=>{ state.panel='map'; renderAll(); });
   document.getElementById('cache-magnet-btn').addEventListener('click', manualMagnetCollect);
+  document.getElementById('cache-magnet-toggle-btn').addEventListener('click', toggleMagnet);
   document.getElementById('map-drop-btn').addEventListener('click', dropOne);
   document.getElementById('map-drop-all-btn').addEventListener('click', dropAll);
   document.getElementById('shelf-drop-btn').addEventListener('click', dropOne);
