@@ -121,6 +121,7 @@
     overflow:hidden;
   }
   .tile.cache{ background:var(--panel-alt); border:1px solid var(--accent); padding:1px; }
+  .tile.cache.solid{ border:2px solid var(--muted); border-radius:3px; }
   .tile.player{ background:var(--accent); color:var(--panel); }
 
   .mosaic{ display:grid; grid-template-columns:repeat(5,1fr); grid-template-rows:repeat(5,1fr); width:100%; height:100%; gap:0.5px; }
@@ -309,7 +310,9 @@
       <button class="btn secondary" id="ach-open-btn-home" style="margin-bottom:10px;">🏆 Succès</button>
       <button class="btn secondary" id="stats-open-btn-home" style="margin-bottom:10px;">📊 Statistiques &amp; records</button>
       <p>Le jeu progresse par niveaux : le niveau 1 commence avec 4 couleurs, et chaque niveau suivant en ajoute une, jusqu'à 16. Une étagère par couleur sur le pourtour, les caches en damier (regroupées vers le centre). Chaque objet placé rapporte de l'argent : agrandis ton sac, ou débloque l'Aimant, le Téléporteur, le Classement automatique et d'autres améliorations. Dès qu'une étagère de chaque couleur est réparée, le niveau suivant démarre automatiquement, sans perdre tes améliorations.</p>
-      <button class="btn" id="btn-start">Commencer (Niveau 1 — 4 couleurs)</button>
+      <button class="btn" id="btn-start">Mode classique (Niveau 1 — 4 couleurs)</button>
+      <p style="margin-top:12px;">Mode Remparts : les piles sont infranchissables. Tu ne peux pas passer d'une pile à l'autre : approche-toi d'une pile accessible (sur le bord du groupe) pour la fouiller. Une pile vidée devient un passage, ce qui ouvre le chemin vers celles de l'intérieur.</p>
+      <button class="btn" id="btn-start-solid" style="margin-top:4px;">Mode Remparts (piles infranchissables)</button>
     </div>
   </div>
 
@@ -447,6 +450,10 @@
     <h2 id="overlay-title">Niveau terminé !</h2>
     <p id="summary"></p>
     <p id="overlay-note" style="font-size:0.66rem;color:var(--muted);margin:-8px 0 12px;">Le niveau suivant démarre automatiquement...</p>
+    <div id="overlay-choices">
+      <button class="btn" id="overlay-continue" style="margin-bottom:8px;">Continuer</button>
+      <button class="btn secondary" id="overlay-menu" style="margin-bottom:8px;">Retour au menu (la partie reste sauvegardée)</button>
+    </div>
     <button class="btn secondary" id="restart">Recommencer au niveau 1 (tout réinitialiser)</button>
   </div>
 </div>
@@ -744,7 +751,7 @@
   let currentTab = 'carte';
 
   function saveGame(){
-    if(!state) return false;
+    if(!state || state.levelOver) return false; // a finished level is replaced by the prepared next level
     try{ localStorage.setItem(SAVE_KEY, JSON.stringify(state)); state._lastSaveOk=true; return true; }
     catch(e){ state._lastSaveOk=false; return false; }
   }
@@ -1032,7 +1039,9 @@
   function spawnEvent(){
     if(state.panel!=='map'){ state.nextEventAtMs = (state.elapsedMs||0)+3000; return; }
     const free=[];
+    const reach = state.solid ? currentReachable() : null;
     for(let y=0;y<state.rows;y++) for(let x=0;x<state.cols;x++){
+      if(reach && !reach.has(x+','+y)) continue;
       const cell = state.grid[y][x];
       const gp = state.groundPiles[x+','+y];
       if(cell.type==='floor' && !(gp && gp.some(k=>!k.taken)) && !(state.player.x===x && state.player.y===y)) free.push({x,y});
@@ -1113,7 +1122,7 @@
     if(ch.rule==='chrono' && (state.elapsedMs||0)>=ch.limitMs) return failChallenge('Temps écoulé');
   }
   function keepFromState(){
-    return { money:state.money, trayUpgrades:state.trayUpgrades, hasMagnet:state.hasMagnet, magnetActive:state.magnetActive, magnetRange:state.magnetRange||0, magnetRangeActive:state.magnetRangeActive!==false, hasTeleport:state.hasTeleport, hasAutoSort:state.hasAutoSort, priceLevel:state.priceLevel, colorRecallLevel:state.colorRecallLevel, round:state.round||1 };
+    return { money:state.money, trayUpgrades:state.trayUpgrades, hasMagnet:state.hasMagnet, magnetActive:state.magnetActive, magnetRange:state.magnetRange||0, magnetRangeActive:state.magnetRangeActive!==false, hasTeleport:state.hasTeleport, hasAutoSort:state.hasAutoSort, priceLevel:state.priceLevel, colorRecallLevel:state.colorRecallLevel, round:state.round||1, solid:!!state.solid };
   }
   function failChallenge(reason){
     state.levelOver = true;
@@ -1123,6 +1132,7 @@
     document.getElementById('overlay-title').textContent = 'Défi '+ch.n+' raté';
     document.getElementById('summary').textContent = reason+' — '+challengeLabel(ch)+'. Tu recommences ce défi avec toutes tes améliorations.';
     document.getElementById('overlay-note').textContent = 'Nouvelle tentative dans un instant...';
+    document.getElementById('overlay-choices').style.display = 'none';
     document.getElementById('overlay').classList.add('show');
     clearSave();
     clearTimeout(levelAdvanceTimer);
@@ -1139,7 +1149,7 @@
 
   // ---------- Statistiques & records ----------
   function recordLevelStats(){
-    const key = state.challenge ? 'defi' : String(state.level||1);
+    const key = state.challenge ? (state.solid?'Rdefi':'defi') : (state.solid?'R':'')+String(state.level||1);
     const ms = state.elapsedMs||0;
     const placed = state.totalPlaced;
     const acc = placed>0 ? placed/(placed+state.mistakes) : 0;
@@ -1180,6 +1190,17 @@
       if(!rec) continue;
       any=true;
       row('Niv. '+lvl+' ('+colorsForLevel(lvl).length+' coul.)', formatTime(rec.best)+' · '+Math.round((rec.bestAcc||0)*100)+'% · '+rec.plays+'x');
+    }
+    for(let lvl=1; lvl<=MAX_LEVEL; lvl++){
+      const rec = stats.levels['R'+lvl];
+      if(!rec) continue;
+      any=true;
+      row('Remparts niv. '+lvl+' ('+colorsForLevel(lvl).length+' coul.)', formatTime(rec.best)+' · '+Math.round((rec.bestAcc||0)*100)+'% · '+rec.plays+'x');
+    }
+    if(stats.levels['Rdefi']){
+      any=true;
+      const rec=stats.levels['Rdefi'];
+      row('Remparts défis', formatTime(rec.best)+' · '+Math.round((rec.bestAcc||0)*100)+'% · '+rec.plays+'x');
     }
     if(stats.levels['defi']){
       any=true;
@@ -1252,6 +1273,53 @@
     return sizes;
   }
 
+  // ---------- Mode Remparts : piles infranchissables ----------
+  function isSolidCacheAt(x,y){
+    if(!state || !state.solid) return false;
+    const c = state.grid[y] && state.grid[y][x];
+    return !!(c && c.type==='cache' && c.keys && c.keys.some(k=>k && !k.taken));
+  }
+  function reachableFrom(grid, cols, rows, sx, sy){
+    const seen = new Set([sx+','+sy]);
+    const q=[{x:sx,y:sy}];
+    while(q.length){
+      const p=q.shift();
+      [[1,0],[-1,0],[0,1],[0,-1]].forEach(d=>{
+        const nx=p.x+d[0], ny=p.y+d[1];
+        if(nx<0||ny<0||nx>=cols||ny>=rows) return;
+        const k=nx+','+ny; if(seen.has(k)) return;
+        const c=grid[ny][nx];
+        if(c.type==='cache' && c.keys && c.keys.some(z=>z && !z.taken)) return;
+        seen.add(k); q.push({x:nx,y:ny});
+      });
+    }
+    return seen;
+  }
+  function solidMapOk(gm){
+    const seen = reachableFrom(gm.grid, gm.cols, gm.rows, gm.start.x, gm.start.y);
+    let shelves=0, shelvesSeen=0, touching=false;
+    for(let y=0;y<gm.rows;y++) for(let x=0;x<gm.cols;x++){
+      const c=gm.grid[y][x];
+      if(c.type==='shelf'){ shelves++; if(seen.has(x+','+y)) shelvesSeen++; }
+      if(c.type==='cache' && !touching){
+        touching = [[1,0],[-1,0],[0,1],[0,-1]].some(d=>seen.has((x+d[0])+','+(y+d[1])));
+      }
+    }
+    return shelves===shelvesSeen && touching;
+  }
+  function currentReachable(){
+    return reachableFrom(state.grid, state.cols, state.rows, state.player.x, state.player.y);
+  }
+  function adjacentSolidCache(){
+    const dirs=[[0,-1],[0,1],[-1,0],[1,0]];
+    for(const d of dirs){
+      const nx=state.player.x+d[0], ny=state.player.y+d[1];
+      if(nx<0||ny<0||nx>=state.cols||ny>=state.rows) continue;
+      if(isSolidCacheAt(nx,ny)) return {x:nx,y:ny};
+    }
+    return null;
+  }
+
   function generateMap(pool, colorList, cols, rows){
     const colors = colorList || COLORS;
     const C = cols || COLS, R = rows || ROWS;
@@ -1313,16 +1381,31 @@
     return {grid, start, cols:C, rows:R};
   }
 
-  function freshRoundState(keep, level, challenge){
+  function freshRoundState(keep, level, challenge, solidParam){
     const mode = 'souscla';
     const theme = 'clavier';
     const lvl = Math.max(1, Math.min(level || 1, MAX_LEVEL));
     const colorList = colorsForLevel(lvl);
     const pool = buildPool(theme, colorList);
-    const {cols, rows} = mapDimsForLevel(lvl);
-    const {grid, start} = generateMap(pool, colorList, cols, rows);
+    let {cols, rows} = mapDimsForLevel(lvl);
+    let isSolid = keep ? !!keep.solid : !!solidParam;
+    if(isSolid){
+      // Remparts needs room to walk between the piles: grow the map until the
+      // interior is clearly larger than the number of piles.
+      const needed = Math.ceil(computeCacheSizes(pool.length).length*1.4)+2;
+      let flip = false;
+      while((cols-2)*(rows-2) < needed){ if(flip) rows++; else cols++; flip = !flip; }
+    }
+    let gm = generateMap(pool, colorList, cols, rows);
+    if(isSolid){
+      let tries=0;
+      while(!solidMapOk(gm) && tries<200){ gm = generateMap(pool, colorList, cols, rows); tries++; }
+      if(!solidMapOk(gm)) isSolid = false; // very unlikely: fall back to a classic map
+    }
+    const {grid, start} = gm;
     return {
       mode, theme, level: lvl, cols, rows, grid, player:{x:start.x,y:start.y},
+      solid: isSolid, openCache: null,
       tray:[], selectedUid:null,
       keyboards: buildKeyboards(mode, theme, colorList),
       groundPiles: {},
@@ -1349,14 +1432,14 @@
 
   function updateHudMode(){
     document.getElementById('hud-mode').textContent = state.challenge
-      ? 'Défi '+state.challenge.n
-      : 'Niv. '+state.level+' ('+activeColors().length+' coul.)';
+      ? 'Défi '+state.challenge.n+(state.solid?' \u00b7 Remparts':'')
+      : 'Niv. '+state.level+' ('+activeColors().length+' coul.)'+(state.solid?' \u00b7 Remparts':'');
   }
 
   let pendingKeep = null;
 
-  function startGame(){
-    state = freshRoundState(pendingKeep, 1);
+  function startGame(solid){
+    state = freshRoundState(pendingKeep, 1, null, solid===true);
     pendingKeep = null;
     currentTab='carte';
     document.getElementById('screen-mode').classList.add('hidden');
@@ -1366,7 +1449,37 @@
     renderAll();
   }
 
-  function nextLevel(){
+  // Builds the next level's state into nextState and stores it as the save.
+  let nextState = null;
+  function prepareNextLevel(){
+    const prev = state;
+    nextLevel(true);
+    nextState = state;
+    state = prev;
+    try{ localStorage.setItem(SAVE_KEY, JSON.stringify(nextState)); }catch(e){}
+    document.getElementById('resume-btn').classList.remove('hidden');
+  }
+  function continueFromOverlay(){
+    if(!nextState) return;
+    clearTimeout(levelAdvanceTimer);
+    state = nextState; nextState = null;
+    document.getElementById('overlay').classList.remove('show');
+    currentTab='carte'; setTab('carte');
+    updateHudMode();
+    renderAll();
+  }
+  function menuFromOverlay(){
+    clearTimeout(levelAdvanceTimer);
+    nextState = null; // the next level is already saved
+    document.getElementById('overlay').classList.remove('show');
+    document.getElementById('screen-game').classList.add('hidden');
+    document.getElementById('screen-mode').classList.remove('hidden');
+    document.getElementById('resume-btn').classList.remove('hidden');
+    document.getElementById('resume-btn').disabled = false;
+    document.getElementById('resume-btn').textContent = 'Reprendre la partie sauvegardée';
+  }
+
+  function nextLevel(silent){
     const keep = keepFromState();
     let nextLvl = (state.level||1) + 1;
     let challenge = null;
@@ -1380,6 +1493,7 @@
       nextLvl = MAX_LEVEL;
     }
     state = freshRoundState(keep, nextLvl, challenge);
+    if(silent) return;
     document.getElementById('overlay').classList.remove('show');
     updateHudMode();
     renderAll();
@@ -1494,6 +1608,8 @@
       if(typeof state.magnetRange!=='number') state.magnetRange=0;
       if(typeof state.magnetRangeActive!=='boolean') state.magnetRangeActive=true;
       if(typeof state.elapsedMs!=='number') state.elapsedMs=0;
+      if(typeof state.solid!=='boolean') state.solid=false;
+      state.openCache = null;
       state.levelOver = false;
       if(!state.challenge || typeof state.challenge!=='object') state.challenge=null;
       if(!state.order || typeof state.order!=='object') state.order = makeOrder(state.level, state.totalPlaced||0, state.mistakes||0, state.elapsedMs, activeColors());
@@ -1536,6 +1652,14 @@
     if(state.panel!=='map') return;
     const nx=state.player.x+dx, ny=state.player.y+dy;
     if(nx<0||ny<0||nx>=state.cols||ny>=state.rows) return;
+    if(isSolidCacheAt(nx,ny)){
+      // Remparts: a pile can't be walked through; bumping into it opens it.
+      state.openCache = {x:nx, y:ny};
+      state.panel = 'cache';
+      renderAll();
+      return;
+    }
+    state.openCache = null;
     state.player.x=nx; state.player.y=ny;
     collectEventIfHere();
     renderAll();
@@ -1547,10 +1671,18 @@
     if(cell.type==='cache' && cell.keys && cell.keys.some(k=>!k.taken)) return {type:'cache', label:'Entrer dans la cache'};
     if(cell.type==='shelf') return {type:'shelf', label:'Entrer dans l\u2019\u00e9tag\u00e8re ' + colorOf(cell.color).label, color:cell.color};
     if(state.groundPiles[coordKey] && state.groundPiles[coordKey].some(k=>!k.taken)) return {type:'cache', label:'Reprendre tes touches déposées'};
+    if(state.solid){
+      const adj = adjacentSolidCache();
+      if(adj) return {type:'cache', label:'Fouiller la pile voisine', target:adj};
+    }
     return null;
   }
 
   function currentPileInfo(){
+    if(state.solid && state.openCache){
+      const oc = state.grid[state.openCache.y] && state.grid[state.openCache.y][state.openCache.x];
+      if(oc && oc.type==='cache') return {source:'cache', arr:oc.keys, cell:oc};
+    }
     const cell = state.grid[state.player.y][state.player.x];
     const coordKey = state.player.x+','+state.player.y;
     if(cell.type==='cache') return {source:'cache', arr:cell.keys, cell};
@@ -1569,10 +1701,19 @@
       if(d>r || nx<0 || ny<0 || nx>=state.cols || ny>=state.rows) continue;
       cells.push({x:nx, y:ny, d});
     }
+    if(state.solid && state.openCache && !cells.some(c=>c.x===state.openCache.x && c.y===state.openCache.y)){
+      cells.push({x:state.openCache.x, y:state.openCache.y, d:0});
+    }
     cells.sort((a,b)=>a.d-b.d);
     let collected=0;
     cells.forEach(c=>{
       const cell = state.grid[c.y][c.x];
+      if(state.solid && cell.type==='cache'){
+        // Remparts: only the pile currently opened, or (with range) piles right next to you.
+        const isOpen = state.openCache && state.openCache.x===c.x && state.openCache.y===c.y;
+        const isAdj = Math.abs(c.x-state.player.x)+Math.abs(c.y-state.player.y)===1 && r>=1;
+        if(!isOpen && !isAdj) return;
+      }
       const arr = cell.type==='cache' ? cell.keys : state.groundPiles[c.x+','+c.y];
       if(!arr) return;
       for(let i=0; i<arr.length && state.tray.length<getTrayCap(); i++){
@@ -1590,7 +1731,7 @@
   function enterCurrentTile(){
     const info = currentEnterable();
     if(!info) return;
-    if(info.type==='cache'){ state.panel='cache'; }
+    if(info.type==='cache'){ state.openCache = info.target || null; state.panel='cache'; }
     else if(info.type==='shelf'){ state.panel='shelf'; state.activeShelf=info.color; }
     renderAll();
   }
@@ -1623,6 +1764,26 @@
   function teleportToNearestCache(){
     const coord=findNearestCache();
     if(!coord) return;
+    if(state.solid){
+      // Remparts: land on a free cell next to the nearest pile reachable from outside.
+      const seen = currentReachable();
+      let best=null, bd=Infinity;
+      for(let y=0;y<state.rows;y++) for(let x=0;x<state.cols;x++){
+        if(!isSolidCacheAt(x,y)) continue;
+        [[0,-1],[0,1],[-1,0],[1,0]].forEach(d=>{
+          const sx=x+d[0], sy=y+d[1];
+          if(!seen.has(sx+','+sy)) return;
+          const dist=Math.abs(sx-state.player.x)+Math.abs(sy-state.player.y);
+          if(dist<bd){ bd=dist; best={sx,sy,x,y}; }
+        });
+      }
+      if(!best) return;
+      state.player.x=best.sx; state.player.y=best.sy;
+      state.openCache={x:best.x, y:best.y};
+      state.panel='cache';
+      renderAll();
+      return;
+    }
     state.player.x=coord.x; state.player.y=coord.y;
     state.panel='cache';
     renderAll();
@@ -1942,7 +2103,7 @@
         let cls='tile', ch=null, mosaicArr=null;
         div.style.background=''; div.style.color='';
         if(cell.type==='cache'){
-          if(cell.keys && cell.keys.some(k=>!k.taken)){ cls+=' cache'; mosaicArr=cell.keys; }
+          if(cell.keys && cell.keys.some(k=>!k.taken)){ cls+=' cache'+(state.solid?' solid':''); mosaicArr=cell.keys; }
           else ch='.';
         } else if(cell.type==='shelf'){
           const c = colorOf(cell.color);
@@ -2312,11 +2473,11 @@
         if(ch.n>=3) unlockAchievement('defi_3');
         title = 'Défi '+ch.n+' réussi !';
         summary = timeAcc+' \u00b7 Bonus de défi : +'+bonus+'$ \u00b7 Argent : '+formatMoney(state.money)+'$';
-        note = 'Le prochain défi démarre automatiquement...';
+        note = 'Choisis : continuer maintenant ou revenir au menu (ta progression est sauvegardée).';
       } else {
         title = 'Niveau terminé !';
         summary = 'Niveau '+(state.level||1)+' terminé ('+activeColors().length+' couleurs). '+timeAcc+' \u00b7 Score : '+state.score+' \u00b7 Erreurs : '+state.mistakes+' \u00b7 Argent : '+formatMoney(state.money)+'$';
-        note = (state.level||1)>=MAX_LEVEL ? 'Le premier défi démarre automatiquement...' : 'Le niveau suivant démarre automatiquement...';
+        note = 'Choisis : continuer maintenant ou revenir au menu (ta progression est sauvegardée).';
       }
       if(res.newTime) summary += ' \u00b7 \uD83C\uDFC6 Nouveau record !';
       document.getElementById('overlay-title').textContent = title;
@@ -2329,16 +2490,19 @@
       if(achievements.totalRounds>=5) unlockAchievement('marathonien');
       if(state.mistakes===0) unlockAchievement('sans_faute');
       if(!state.hasMagnet && !state.hasTeleport) unlockAchievement('minimaliste');
-      clearSave();
+      document.getElementById('overlay-choices').style.display = '';
+      document.getElementById('overlay-continue').textContent = ch ? 'Continuer vers le prochain défi' : ((state.level||1)>=MAX_LEVEL ? 'Continuer vers le premier défi' : 'Continuer vers le niveau '+((state.level||1)+1));
       clearTimeout(levelAdvanceTimer);
-      levelAdvanceTimer = setTimeout(()=>{ nextLevel(); }, 1800);
+      // Save the state of the *next* level right away, so "Retour au menu" keeps the progress.
+      prepareNextLevel();
     }
   }
 
   const existingSave = loadSavedGame();
   if(existingSave) document.getElementById('resume-btn').classList.remove('hidden');
 
-  document.getElementById('btn-start').addEventListener('click', ()=>startGame());
+  document.getElementById('btn-start').addEventListener('click', ()=>startGame(false));
+  document.getElementById('btn-start-solid').addEventListener('click', ()=>startGame(true));
   document.getElementById('resume-btn').addEventListener('click', resumeGame);
   document.getElementById('ach-open-btn-home').addEventListener('click', openAchievements);
   document.getElementById('ach-close-btn').addEventListener('click', closeAchievements);
@@ -2367,6 +2531,8 @@
   document.getElementById('stats-close-btn').addEventListener('click', closeStats);
   document.getElementById('settings-stats-btn').addEventListener('click', openStats);
   document.getElementById('restart').addEventListener('click', restartFromLevel1);
+  document.getElementById('overlay-continue').addEventListener('click', continueFromOverlay);
+  document.getElementById('overlay-menu').addEventListener('click', menuFromOverlay);
 
   // --- Map pinch-to-zoom ---
   (function initMapZoom(){
