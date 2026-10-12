@@ -1277,9 +1277,16 @@
   function isSolidCacheAt(x,y){
     if(!state || !state.solid) return false;
     const c = state.grid[y] && state.grid[y][x];
-    return !!(c && c.type==='cache' && c.keys && c.keys.some(k=>k && !k.taken));
+    if(!c) return false;
+    if(c.type==='cache') return !!(c.keys && c.keys.some(k=>k && !k.taken));
+    if(c.type==='floor'){
+      // piles dropped by the player are just as impassable (shelves always stay walkable)
+      const gp = state.groundPiles && state.groundPiles[x+','+y];
+      return !!(gp && gp.some(k=>k && !k.taken));
+    }
+    return false;
   }
-  function reachableFrom(grid, cols, rows, sx, sy){
+  function reachableFrom(grid, cols, rows, sx, sy, piles){
     const seen = new Set([sx+','+sy]);
     const q=[{x:sx,y:sy}];
     while(q.length){
@@ -1290,6 +1297,7 @@
         const k=nx+','+ny; if(seen.has(k)) return;
         const c=grid[ny][nx];
         if(c.type==='cache' && c.keys && c.keys.some(z=>z && !z.taken)) return;
+        if(c.type==='floor' && piles && piles[k] && piles[k].some(z=>z && !z.taken)) return;
         seen.add(k); q.push({x:nx,y:ny});
       });
     }
@@ -1308,7 +1316,7 @@
     return shelves===shelvesSeen && touching;
   }
   function currentReachable(){
-    return reachableFrom(state.grid, state.cols, state.rows, state.player.x, state.player.y);
+    return reachableFrom(state.grid, state.cols, state.rows, state.player.x, state.player.y, state.groundPiles);
   }
   function adjacentSolidCache(){
     const dirs=[[0,-1],[0,1],[-1,0],[1,0]];
@@ -1682,6 +1690,8 @@
     if(state.solid && state.openCache){
       const oc = state.grid[state.openCache.y] && state.grid[state.openCache.y][state.openCache.x];
       if(oc && oc.type==='cache') return {source:'cache', arr:oc.keys, cell:oc};
+      const ck = state.openCache.x+','+state.openCache.y;
+      if(oc && state.groundPiles[ck]) return {source:'ground', arr:state.groundPiles[ck], coordKey:ck};
     }
     const cell = state.grid[state.player.y][state.player.x];
     const coordKey = state.player.x+','+state.player.y;
@@ -1708,7 +1718,8 @@
     let collected=0;
     cells.forEach(c=>{
       const cell = state.grid[c.y][c.x];
-      if(state.solid && cell.type==='cache'){
+      const ownCell = c.x===state.player.x && c.y===state.player.y;
+      if(state.solid && !ownCell && (cell.type==='cache' || isSolidCacheAt(c.x,c.y))){
         // Remparts: only the pile currently opened, or (with range) piles right next to you.
         const isOpen = state.openCache && state.openCache.x===c.x && state.openCache.y===c.y;
         const isAdj = Math.abs(c.x-state.player.x)+Math.abs(c.y-state.player.y)===1 && r>=1;
@@ -1858,6 +1869,20 @@
     return state.groundPiles[coordKey];
   }
 
+  // Remparts: while a pile is open (you can't stand on it), drops go into that pile.
+  function dropTargetArr(){
+    if(state.solid && state.panel==='cache' && state.openCache){
+      const oc = state.openCache;
+      const c = state.grid[oc.y] && state.grid[oc.y][oc.x];
+      if(c && c.type==='cache'){ if(!c.keys) c.keys=[]; return c.keys; }
+      const k = oc.x+','+oc.y;
+      if(!state.groundPiles[k]) state.groundPiles[k]=[];
+      return state.groundPiles[k];
+    }
+    const cell = state.grid[state.player.y][state.player.x];
+    return getDropTargetArr(cell, state.player.x+','+state.player.y);
+  }
+
   function depositKeyIntoPile(arr, key){
     key.taken = false;
     const reuseIdx = arr.findIndex(k=>k.taken);
@@ -1877,9 +1902,7 @@
   function dropOne(){
     if(state.tray.length===0) return;
     showDropToast('');
-    const cell = state.grid[state.player.y][state.player.x];
-    const coordKey=state.player.x+','+state.player.y;
-    const arr = getDropTargetArr(cell, coordKey);
+    const arr = dropTargetArr();
     const key = state.tray.find(k=>k.uid===state.selectedUid) || state.tray[0];
     if(!depositKeyIntoPile(arr, key)){
       showDropToast('Cette pile est pleine ('+PILE_MAX+' max) — vas-y avec une autre touche ou un autre endroit.');
@@ -1893,9 +1916,7 @@
   function dropAll(){
     if(state.tray.length===0) return;
     showDropToast('');
-    const cell = state.grid[state.player.y][state.player.x];
-    const coordKey=state.player.x+','+state.player.y;
-    const arr = getDropTargetArr(cell, coordKey);
+    const arr = dropTargetArr();
     const keysToDrop = state.tray.slice();
     const remaining=[];
     let placedCount=0;
@@ -1914,9 +1935,7 @@
     const hasAny = state.tray.some(k=>k.color===colorId);
     if(!hasAny) return;
     showDropToast('');
-    const cell = state.grid[state.player.y][state.player.x];
-    const coordKey=state.player.x+','+state.player.y;
-    const arr = getDropTargetArr(cell, coordKey);
+    const arr = dropTargetArr();
     const remaining=[];
     let placedCount=0;
     state.tray.forEach(key=>{
@@ -2111,7 +2130,7 @@
           ch = shelfDone(cell.color) ? '\u2713' : 'S';
         } else {
           const gp = state.groundPiles[x+','+y];
-          if(gp && gp.some(k=>!k.taken)){ cls+=' cache'; mosaicArr=gp; }
+          if(gp && gp.some(k=>!k.taken)){ cls+=' cache'+(state.solid?' solid':''); mosaicArr=gp; }
           else if(state.event && state.event.x===x && state.event.y===y){
             cls += ' event event-'+state.event.type;
             if(state.event.expiresAtMs-(state.elapsedMs||0) < 6000) cls += ' event-fading';
