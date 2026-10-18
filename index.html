@@ -139,6 +139,18 @@
   .dpad button:active{ background:var(--panel-alt); }
   .dpad .empty{ background:transparent; border:none; }
 
+  .map-actions{ display:flex; gap:6px; margin-bottom:6px; }
+  .map-actions .btn{ flex:1; }
+  .map-actions #enter-btn{ flex:2; }
+  #enter-btn{ margin-bottom:0; }
+  .toast:empty{ display:none; }
+  .tile.tappable{ cursor:pointer; }
+  @media (max-width: 859px){
+    #map-hint{ display:none; }
+    .tab-panel#tab-carte .section-label{ margin:2px 0 2px; }
+    .dpad{ margin-bottom:4px; grid-template-columns:repeat(3, 38px); grid-template-rows:repeat(3, 34px); gap:4px; }
+    .tray-strip{ height:48px; margin-bottom:6px; }
+  }
   .hint{ text-align:center; font-size:0.56rem; color:var(--muted); margin-top:2px; line-height:1.4; }
 
   .panel{ background:var(--panel); border:1px solid var(--grid-line); border-radius:6px; padding:10px; }
@@ -333,15 +345,18 @@
         <div id="tab-carte" class="tab-panel active">
           <button class="zoom-reset-btn hidden" id="zoom-reset-btn">Réinitialiser le zoom</button>
           <div class="map-wrap" id="map-wrap"><div class="map-zoom" id="map-zoom"><div class="map-grid" id="map-grid"></div></div></div>
-          <button class="btn" id="enter-btn">Rien à faire ici</button>
+          <div class="map-actions">
+            <button class="btn" id="enter-btn">Rien à faire ici</button>
+            <button class="btn secondary hidden" id="tp-nearest-btn">⚡ Cache proche</button>
+          </div>
           <div class="dpad">
             <div class="empty"></div><button id="btn-up">&#9650;</button><div class="empty"></div>
             <button id="btn-left">&#9664;</button><div class="empty"></div><button id="btn-right">&#9654;</button>
             <div class="empty"></div><button id="btn-down">&#9660;</button><div class="empty"></div>
           </div>
-          <div class="hint" id="map-hint">@ toi &middot; mosaïque = cache/tas &middot; case colorée = étagère &middot; ordi : WASD, Q quitter, E entrer, C tout déposer, X déposer 1 (personnalisable dans ⚙️)</div>
+          <div class="hint" id="map-hint">@ toi &middot; mosaïque = pile &middot; case colorée = étagère &middot; avec le Téléporteur, touche une étagère ou une pile sur la carte pour t'y rendre &middot; les raccourcis clavier sont personnalisables dans ⚙️</div>
 
-          <div class="section-label">Ton sac (touche une touche pour la choisir ; sinon la plus ancienne est utilisée)</div>
+          <div class="section-label">Sac</div>
           <div class="tray-strip" id="map-tray"></div>
           <div class="drop-buttons">
             <button class="btn secondary" id="map-drop-btn">Déposer 1 touche</button>
@@ -368,11 +383,6 @@
               <button class="shop-btn" id="shop-autosort-btn">Acheter le Classement automatique — 500$</button>
               <button class="shop-btn" id="shop-recall-btn">Acheter le Rappel de couleur (1 touche, 30s de recharge) — 200$</button>
               <button class="shop-btn hidden" id="shop-price-btn">Augmenter la valeur des touches</button>
-            </div>
-            <div id="teleport-box" class="hidden">
-              <div class="section-label">Téléportation</div>
-              <div class="teleport-grid" id="teleport-grid"></div>
-              <button class="btn secondary" id="tp-nearest-btn">Téléporter vers la cache la plus proche</button>
             </div>
           </div>
         </div>
@@ -402,7 +412,7 @@
       <div class="key-grid" id="cache-grid"></div>
       <div class="toast" id="cache-toast"></div>
 
-      <div class="section-label">Ton sac (touche une touche pour la choisir ; sinon la plus ancienne est utilisée)</div>
+      <div class="section-label">Sac</div>
       <div class="tray-strip" id="cache-tray"></div>
       <div class="drop-buttons">
         <button class="btn secondary" id="cache-drop-btn">Déposer 1 touche</button>
@@ -429,7 +439,7 @@
       <button class="btn secondary" id="shelf-recall-btn" style="margin-bottom:6px;">📡 Rappeler cette couleur (Rappel de couleur)</button>
       <div class="toast" id="shelf-autosort-toast"></div>
 
-      <div class="section-label">Ton sac (touche une touche pour la choisir ; sinon la plus ancienne est utilisée)</div>
+      <div class="section-label">Sac</div>
       <div class="tray-strip" id="shelf-tray"></div>
       <div class="drop-buttons">
         <button class="btn secondary" id="shelf-drop-btn">Déposer 1 touche</button>
@@ -612,8 +622,16 @@
 
   // ---------- keybinds (desktop shortcuts, customizable) ----------
   const KEYBIND_KEY='clavierPerduKeybindsV1';
-  const DEFAULT_KEYBINDS = { up:'w', down:'s', left:'a', right:'d', quit:'q', enter:'e', dropAll:'c', dropOne:'x' };
-  const KEYBIND_LABELS = { up:'Haut', down:'Bas', left:'Gauche', right:'Droite', quit:'Quitter (retour carte)', enter:'Entrer', dropAll:'Tout déposer', dropOne:'Déposer 1 touche' };
+  const DEFAULT_KEYBINDS = {
+    up:'w', down:'s', left:'a', right:'d', quit:'q', enter:'e', dropAll:'c', dropOne:'x',
+    collectAll:'f', tpNearest:'t', autoSort:'g', recall:'r',
+    magnet:'m', rangeToggle:'n', buyBag:'b', buyRange:'h', buyTeleport:'k', buyAutoSort:'l', buyRecall:'u', buyPrice:'p',
+    tabMap:'1', tabShop:'2', tabAch:'3', zoomReset:'z', settings:'o'
+  };
+  const KEYBIND_LABELS = { up:'Haut', down:'Bas', left:'Gauche', right:'Droite', quit:'Quitter (retour carte)', enter:'Entrer', dropAll:'Tout déposer', dropOne:'Déposer 1 touche',
+    collectAll:'Tout ramasser (Aimant, dans une pile)', tpNearest:'Téléporter vers la pile la plus proche', autoSort:'Tout classer (dans une étagère)', recall:'Rappel de couleur (dans une étagère)',
+    magnet:'Aimant : acheter / activer / désactiver', rangeToggle:'Portée de l\u2019Aimant : activer / désactiver', buyBag:'Acheter : capacité du sac', buyRange:'Acheter : portée de l\u2019Aimant', buyTeleport:'Acheter : Téléporteur', buyAutoSort:'Acheter : Classement automatique', buyRecall:'Acheter : Rappel de couleur', buyPrice:'Acheter : valeur des touches',
+    tabMap:'Onglet Carte & Sac', tabShop:'Onglet Boutique', tabAch:'Onglet Succès', zoomReset:'Réinitialiser le zoom', settings:'Ouvrir les réglages' };
   function loadKeybinds(){
     try{
       const raw=localStorage.getItem(KEYBIND_KEY);
@@ -633,7 +651,7 @@
       const label=document.createElement('span'); label.textContent=KEYBIND_LABELS[action];
       const btn=document.createElement('button');
       btn.className='keybind-btn'+(listeningFor===action ? ' listening' : '');
-      btn.textContent = listeningFor===action ? '...' : keybinds[action].toUpperCase();
+      btn.textContent = listeningFor===action ? '...' : (keybinds[action] ? keybinds[action].toUpperCase() : '\u2014');
       btn.addEventListener('click', ()=>{ listeningFor=action; renderKeybindRows(); });
       row.appendChild(label); row.appendChild(btn);
       container.appendChild(row);
@@ -1772,6 +1790,38 @@
     }
     return best;
   }
+  // Tap a pile on the map (Téléporteur): go stand on it (classic) or right next to it (Remparts).
+  function teleportToPileAt(x,y){
+    if(state.solid){
+      const seen = currentReachable();
+      const dirs=[[0,-1],[0,1],[-1,0],[1,0]];
+      let best=null, bd=Infinity;
+      dirs.forEach(d=>{
+        const sx=x+d[0], sy=y+d[1];
+        if(!seen.has(sx+','+sy)) return;
+        const dist=Math.abs(sx-state.player.x)+Math.abs(sy-state.player.y);
+        if(dist<bd){ bd=dist; best={sx,sy}; }
+      });
+      if(!best) return;
+      state.player.x=best.sx; state.player.y=best.sy;
+      state.openCache={x,y};
+    } else {
+      state.player.x=x; state.player.y=y;
+      state.openCache=null;
+    }
+    state.panel='cache';
+    renderAll();
+  }
+  function onMapTileTap(x,y){
+    if(!state || state.panel!=='map') return;
+    if(state.player.x===x && state.player.y===y){ enterCurrentTile(); return; }
+    if(!state.hasTeleport) return;
+    const cell = state.grid[y][x];
+    if(cell.type==='shelf'){ teleportToShelf(cell.color); return; }
+    const gp = state.groundPiles[x+','+y];
+    const hasPile = (cell.type==='cache' && cell.keys && cell.keys.some(k=>!k.taken)) || (gp && gp.some(k=>!k.taken));
+    if(hasPile) teleportToPileAt(x,y);
+  }
   function teleportToNearestCache(){
     const coord=findNearestCache();
     if(!coord) return;
@@ -1796,6 +1846,7 @@
       return;
     }
     state.player.x=coord.x; state.player.y=coord.y;
+    state.openCache=null;
     state.panel='cache';
     renderAll();
   }
@@ -2065,21 +2116,9 @@
       }
     }
 
-    const tpBox=document.getElementById('teleport-box');
-    tpBox.classList.toggle('hidden', !state.hasTeleport);
-    if(state.hasTeleport){
-      const grid=document.getElementById('teleport-grid');
-      grid.innerHTML='';
-      activeColors().forEach(c=>{
-        const b=document.createElement('button');
-        b.className='tp-swatch';
-        b.style.background=c.hex;
-        b.textContent = shelfDone(c.id) ? '\u2713' : c.label.slice(0,3);
-        b.addEventListener('click', ()=>teleportToShelf(c.id));
-        grid.appendChild(b);
-      });
-      document.getElementById('tp-nearest-btn').onclick = teleportToNearestCache;
-    }
+    const tpBtn2=document.getElementById('tp-nearest-btn');
+    tpBtn2.classList.toggle('hidden', !state.hasTeleport);
+    tpBtn2.onclick = teleportToNearestCache;
   }
 
   function renderMapPanel(){
@@ -2141,7 +2180,8 @@
         if(state.player.x===x && state.player.y===y){
           cls='tile player'; ch='@'; mosaicArr=null; div.style.background=''; div.style.color='';
         }
-        div.className=cls;
+        div.className=cls + (state.hasTeleport && (cell.type==='shelf' || mosaicArr) ? ' tappable' : '');
+        div.addEventListener('click', ()=>onMapTileTap(x,y));
         if(mosaicArr) buildMosaic(div, mosaicArr);
         else div.textContent=ch;
         el.appendChild(div);
@@ -2621,7 +2661,10 @@
     if(listeningFor){
       if(e.key==='Escape'){ listeningFor=null; renderKeybindRows(); e.preventDefault(); return; }
       if(e.key.length===1){
-        keybinds[listeningFor] = e.key.toLowerCase();
+        const newKey = e.key.toLowerCase();
+        // a key can only drive one action: free it from any other action first
+        Object.keys(keybinds).forEach(a=>{ if(a!==listeningFor && keybinds[a]===newKey) keybinds[a]=''; });
+        keybinds[listeningFor] = newKey;
         saveKeybinds();
       }
       listeningFor=null;
@@ -2630,15 +2673,41 @@
       return;
     }
     if(!state) return;
+    if(document.querySelector('.overlay.show')) return;
+    if(document.getElementById('screen-game').classList.contains('hidden')) return;
     const k = e.key.length===1 ? e.key.toLowerCase() : '';
-    if(e.key==='ArrowUp' || k===keybinds.up) move(0,-1);
-    else if(e.key==='ArrowDown' || k===keybinds.down) move(0,1);
-    else if(e.key==='ArrowLeft' || k===keybinds.left) move(-1,0);
-    else if(e.key==='ArrowRight' || k===keybinds.right) move(1,0);
-    else if(e.key==='Enter' || k===keybinds.enter) enterCurrentTile();
-    else if(k===keybinds.quit){ if(state.panel!=='map'){ state.panel='map'; renderAll(); } }
-    else if(k===keybinds.dropAll) dropAll();
-    else if(k===keybinds.dropOne) dropOne();
+    function press(id, panel){
+      if(panel && state.panel!==panel) return;
+      const el = document.getElementById(id);
+      if(!el || el.disabled || el.closest('.hidden')) return;
+      el.click();
+    }
+    const actions = {
+      up:()=>move(0,-1), down:()=>move(0,1), left:()=>move(-1,0), right:()=>move(1,0),
+      enter:enterCurrentTile,
+      quit:()=>{ if(state.panel!=='map'){ state.panel='map'; renderAll(); } },
+      dropAll:dropAll, dropOne:dropOne,
+      collectAll:()=>press('cache-magnet-btn','cache'),
+      tpNearest:()=>press('tp-nearest-btn','map'),
+      autoSort:()=>press('shelf-autosort-btn','shelf'),
+      recall:()=>press('shelf-recall-btn','shelf'),
+      magnet:()=>press('shop-magnet-btn'),
+      rangeToggle:()=>press('shop-magnet-range-toggle-btn'),
+      buyBag:()=>press('shop-upgrade-btn'), buyRange:()=>press('shop-magnet-range-btn'),
+      buyTeleport:()=>press('shop-teleport-btn'), buyAutoSort:()=>press('shop-autosort-btn'),
+      buyRecall:()=>press('shop-recall-btn'), buyPrice:()=>press('shop-price-btn'),
+      tabMap:()=>{ if(state.panel==='map') setTab('carte'); },
+      tabShop:()=>{ if(state.panel==='map') setTab('boutique'); },
+      tabAch:()=>{ if(state.panel==='map') setTab('succes'); },
+      zoomReset:()=>press('zoom-reset-btn','map'),
+      settings:()=>press('settings-gear-btn')
+    };
+    let name = null;
+    if(e.key==='ArrowUp') name='up'; else if(e.key==='ArrowDown') name='down';
+    else if(e.key==='ArrowLeft') name='left'; else if(e.key==='ArrowRight') name='right';
+    else if(e.key==='Enter') name='enter';
+    else if(k){ name = Object.keys(actions).find(a=>keybinds[a] && keybinds[a]===k) || null; }
+    if(name){ actions[name](); if(e.key==='Enter' || e.key.startsWith('Arrow')) e.preventDefault(); }
   });
 })();
 </script>
