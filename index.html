@@ -321,10 +321,13 @@
       <button class="btn hidden" id="resume-btn" style="margin-bottom:10px;">Reprendre la partie sauvegardée</button>
       <button class="btn secondary" id="ach-open-btn-home" style="margin-bottom:10px;">🏆 Succès</button>
       <button class="btn secondary" id="stats-open-btn-home" style="margin-bottom:10px;">📊 Statistiques &amp; records</button>
-      <p>Le jeu progresse par niveaux : le niveau 1 commence avec 4 couleurs, et chaque niveau suivant en ajoute une, jusqu'à 16. Une étagère par couleur sur le pourtour, les caches en damier (regroupées vers le centre). Chaque objet placé rapporte de l'argent : agrandis ton sac, ou débloque l'Aimant, le Téléporteur, le Classement automatique et d'autres améliorations. Dès qu'une étagère de chaque couleur est réparée, le niveau suivant démarre automatiquement, sans perdre tes améliorations.</p>
+      <p>Le jeu progresse par niveaux : le niveau 1 commence avec 4 couleurs, et chaque niveau suivant en ajoute deux, jusqu'à 16 (7 niveaux). Une étagère par couleur sur le pourtour, les caches en damier (regroupées vers le centre). Chaque objet placé rapporte de l'argent : agrandis ton sac, ou débloque l'Aimant, le Téléporteur, le Classement automatique et d'autres améliorations. Dès qu'une étagère de chaque couleur est réparée, le niveau suivant démarre automatiquement, sans perdre tes améliorations.</p>
       <button class="btn" id="btn-start">Mode classique (Niveau 1 — 4 couleurs)</button>
       <p style="margin-top:12px;">Mode Remparts : les piles sont infranchissables. Tu ne peux pas passer d'une pile à l'autre : approche-toi d'une pile accessible (sur le bord du groupe) pour la fouiller. Une pile vidée devient un passage, ce qui ouvre le chemin vers celles de l'intérieur.</p>
       <button class="btn" id="btn-start-solid" style="margin-top:4px;">Mode Remparts (piles infranchissables)</button>
+      <p style="margin-top:12px;">Mode Monochrome : ton sac ne peut contenir qu'une seule couleur à la fois. Vide-le (étagère ou dépôt) avant de ramasser une autre couleur.</p>
+      <button class="btn" id="btn-start-mono" style="margin-top:4px;">Mode Monochrome (une couleur dans le sac)</button>
+      <button class="btn secondary" id="btn-start-both" style="margin-top:6px;">Remparts + Monochrome (les deux règles)</button>
     </div>
   </div>
 
@@ -508,7 +511,7 @@
 
 <script>
 (function(){
-  const SAVE_KEY='clavierPerduSaveV12';
+  const SAVE_KEY='clavierPerduSaveV13';
   const THEME_KEY='clavierPerduTheme';
   const COLORS=[
     {id:'rouge', label:'Rouge', hex:'#c0392b'},
@@ -578,8 +581,8 @@
     return n * td.zones.reduce((s,z)=>s+zoneSize(td,z), 0);
   }
 
-  const START_LEVEL_COLORS=4, MAX_LEVEL = COLORS.length - START_LEVEL_COLORS + 1; // level 1 = 4 colors ... level MAX_LEVEL = all colors
-  function colorsForLevel(level){ return COLORS.slice(0, Math.min(START_LEVEL_COLORS + (level-1), COLORS.length)); }
+  const START_LEVEL_COLORS=4, COLORS_PER_LEVEL=2, MAX_LEVEL = Math.ceil((COLORS.length - START_LEVEL_COLORS)/COLORS_PER_LEVEL) + 1; // level 1 = 4 colors, +2 per level ... level MAX_LEVEL = all colors
+  function colorsForLevel(level){ return COLORS.slice(0, Math.min(START_LEVEL_COLORS + COLORS_PER_LEVEL*(level-1), COLORS.length)); }
   function activeColors(){ return colorsForLevel(state ? (state.level||1) : 1); }
 
   // Map grows with the level: a small board for the first few colors, up to
@@ -602,7 +605,7 @@
   // down to a floor, up to COLOR_RECALL_MAX_TIER.
   const COLOR_RECALL_BASE_COST=200, COLOR_RECALL_COST_STEP=100, COLOR_RECALL_MAX_TIER=13;
   const COLOR_RECALL_BASE_COOLDOWN_MS=30000, COLOR_RECALL_COOLDOWN_STEP_MS=2000, COLOR_RECALL_MIN_COOLDOWN_MS=6000;
-  const PRICE_TIER_BASE_COST=100, PRICE_TIER_COST_STEP=50, PRICE_TIER_INCREMENT=0.25, PRICE_TIER_MAX=5, PRICE_UNLOCK_LEVEL=6;
+  const PRICE_TIER_BASE_COST=100, PRICE_TIER_COST_STEP=50, PRICE_TIER_INCREMENT=0.25, PRICE_TIER_MAX=5, PRICE_UNLOCK_LEVEL=3;
 
   function colorOf(id){ return COLORS.find(c=>c.id===id); }
   function formatMoney(v){ return (Math.round(v*100)/100).toFixed(v%1===0 ? 0 : 2); }
@@ -678,7 +681,7 @@
     {id:'rappel_max', cat:'Économie', label:'Signal fort', desc:'Améliorer le Rappel de couleur jusqu\u2019à son niveau maximum'},
     {id:'aimant_max', cat:'Économie', label:'Aimant surpuissant', desc:'Amener la portée de l\u2019Aimant à son maximum'},
     {id:'niveau_5', cat:'Progression', label:'Sur la bonne voie', desc:'Atteindre le niveau 5'},
-    {id:'niveau_10', cat:'Progression', label:'Presque au sommet', desc:'Atteindre le niveau 10'},
+    {id:'niveau_10', cat:'Progression', label:'Presque au sommet', desc:'Atteindre l\u2019avant-dernier niveau (niveau 6, 14 couleurs)'},
     {id:'commande_1', cat:'Commandes & événements', label:'Bon de commande', desc:'Réussir une commande'},
     {id:'commandes_10', cat:'Commandes & événements', label:'Fournisseur attitré', desc:'Réussir 10 commandes au total'},
     {id:'tresor_5', cat:'Commandes & événements', label:'Chasseur de trésors', desc:'Ramasser 5 événements bonus sur la carte'},
@@ -723,7 +726,22 @@
       const raw=localStorage.getItem(STATS_KEY);
       if(!raw) return defaultStats();
       const parsed=JSON.parse(raw);
-      return Object.assign(defaultStats(), parsed, { levels: (parsed && parsed.levels) || {} });
+      const out = Object.assign(defaultStats(), parsed, { levels: (parsed && parsed.levels) || {} });
+      if(!out.twoColorSteps){
+        // Levels used to add one colour at a time; keep records of the levels that still exist (odd old levels = 4,6,8... colours).
+        const migrated = {};
+        Object.keys(out.levels).forEach(key=>{
+          const m = key.match(/^([A-Z]*)(\d+)$/);
+          if(!m){ migrated[key] = out.levels[key]; return; }
+          const oldLvl = parseInt(m[2],10);
+          if(oldLvl%2===0) return;
+          const nk = m[1] + ((oldLvl+1)/2);
+          const rec = out.levels[key], prev = migrated[nk];
+          if(!prev || (rec.best!==null && (prev.best===null || rec.best<prev.best))) migrated[nk] = rec;
+        });
+        out.levels = migrated; out.twoColorSteps = true;
+      }
+      return out;
     }catch(e){ return defaultStats(); }
   }
   let stats = loadStats();
@@ -891,6 +909,14 @@
     if(state.hasAutoSort || state.money<AUTOSORT_COST) return;
     state.money-=AUTOSORT_COST; state.hasAutoSort=true;
     renderAll();
+  }
+  // Mode Monochrome: the bag can only hold one colour at a time.
+  function canTakeKey(k){
+    return !state.mono || state.tray.length===0 || state.tray[0].color===k.color;
+  }
+  function monoRefusalText(){
+    const c = state.tray.length ? colorOf(state.tray[0].color) : null;
+    return 'Sac monochrome : tu portes déjà du '+(c?c.label:'')+'. Dépose-le ou place-le sur son étagère d\u2019abord.';
   }
   function colorRecallOwned(){ return (state.colorRecallLevel||0) > 0; }
   function colorRecallMaxed(){ return (state.colorRecallLevel||0) >= COLOR_RECALL_MAX_TIER; }
@@ -1140,7 +1166,7 @@
     if(ch.rule==='chrono' && (state.elapsedMs||0)>=ch.limitMs) return failChallenge('Temps écoulé');
   }
   function keepFromState(){
-    return { money:state.money, trayUpgrades:state.trayUpgrades, hasMagnet:state.hasMagnet, magnetActive:state.magnetActive, magnetRange:state.magnetRange||0, magnetRangeActive:state.magnetRangeActive!==false, hasTeleport:state.hasTeleport, hasAutoSort:state.hasAutoSort, priceLevel:state.priceLevel, colorRecallLevel:state.colorRecallLevel, round:state.round||1, solid:!!state.solid };
+    return { money:state.money, trayUpgrades:state.trayUpgrades, hasMagnet:state.hasMagnet, magnetActive:state.magnetActive, magnetRange:state.magnetRange||0, magnetRangeActive:state.magnetRangeActive!==false, hasTeleport:state.hasTeleport, hasAutoSort:state.hasAutoSort, priceLevel:state.priceLevel, colorRecallLevel:state.colorRecallLevel, round:state.round||1, solid:!!state.solid, mono:!!state.mono };
   }
   function failChallenge(reason){
     state.levelOver = true;
@@ -1167,7 +1193,7 @@
 
   // ---------- Statistiques & records ----------
   function recordLevelStats(){
-    const key = state.challenge ? (state.solid?'Rdefi':'defi') : (state.solid?'R':'')+String(state.level||1);
+    const key = state.challenge ? ((state.solid?'R':'')+(state.mono?'M':'')+'defi') : (state.solid?'R':'')+(state.mono?'M':'')+String(state.level||1);
     const ms = state.elapsedMs||0;
     const placed = state.totalPlaced;
     const acc = placed>0 ? placed/(placed+state.mistakes) : 0;
@@ -1209,17 +1235,19 @@
       any=true;
       row('Niv. '+lvl+' ('+colorsForLevel(lvl).length+' coul.)', formatTime(rec.best)+' · '+Math.round((rec.bestAcc||0)*100)+'% · '+rec.plays+'x');
     }
-    for(let lvl=1; lvl<=MAX_LEVEL; lvl++){
-      const rec = stats.levels['R'+lvl];
-      if(!rec) continue;
-      any=true;
-      row('Remparts niv. '+lvl+' ('+colorsForLevel(lvl).length+' coul.)', formatTime(rec.best)+' · '+Math.round((rec.bestAcc||0)*100)+'% · '+rec.plays+'x');
-    }
-    if(stats.levels['Rdefi']){
-      any=true;
-      const rec=stats.levels['Rdefi'];
-      row('Remparts défis', formatTime(rec.best)+' · '+Math.round((rec.bestAcc||0)*100)+'% · '+rec.plays+'x');
-    }
+    [['R','Remparts'],['M','Monochrome'],['RM','Remparts + Mono']].forEach(([pre,name])=>{
+      for(let lvl=1; lvl<=MAX_LEVEL; lvl++){
+        const rec = stats.levels[pre+lvl];
+        if(!rec) continue;
+        any=true;
+        row(name+' niv. '+lvl+' ('+colorsForLevel(lvl).length+' coul.)', formatTime(rec.best)+' · '+Math.round((rec.bestAcc||0)*100)+'% · '+rec.plays+'x');
+      }
+      if(stats.levels[pre+'defi']){
+        any=true;
+        const rec=stats.levels[pre+'defi'];
+        row(name+' défis', formatTime(rec.best)+' · '+Math.round((rec.bestAcc||0)*100)+'% · '+rec.plays+'x');
+      }
+    });
     if(stats.levels['defi']){
       any=true;
       const rec=stats.levels['defi'];
@@ -1251,6 +1279,7 @@
   // state.colorRecallLevel (bought progressively via buyColorRecallTier).
   function recallColor(colorId){
     if(!colorRecallOwned() || colorRecallOnCooldown()) return 0;
+    if(state.mono && state.tray.length && state.tray[0].color!==colorId){ showGameToast(monoRefusalText()); return 0; }
     const cap = colorRecallCapacity();
     let pulled=0;
     for(let y=0;y<state.rows && pulled<cap;y++){
@@ -1407,7 +1436,7 @@
     return {grid, start, cols:C, rows:R};
   }
 
-  function freshRoundState(keep, level, challenge, solidParam){
+  function freshRoundState(keep, level, challenge, solidParam, monoParam){
     const mode = 'souscla';
     const theme = 'clavier';
     const lvl = Math.max(1, Math.min(level || 1, MAX_LEVEL));
@@ -1431,7 +1460,7 @@
     const {grid, start} = gm;
     return {
       mode, theme, level: lvl, cols, rows, grid, player:{x:start.x,y:start.y},
-      solid: isSolid, openCache: null,
+      solid: isSolid, openCache: null, mono: keep ? !!keep.mono : !!monoParam,
       tray:[], selectedUid:null,
       keyboards: buildKeyboards(mode, theme, colorList),
       groundPiles: {},
@@ -1458,14 +1487,14 @@
 
   function updateHudMode(){
     document.getElementById('hud-mode').textContent = state.challenge
-      ? 'Défi '+state.challenge.n+(state.solid?' \u00b7 Remparts':'')
-      : 'Niv. '+state.level+' ('+activeColors().length+' coul.)'+(state.solid?' \u00b7 Remparts':'');
+      ? 'Défi '+state.challenge.n+(state.solid?' \u00b7 Remparts':'')+(state.mono?' \u00b7 Mono':'')
+      : 'Niv. '+state.level+' ('+activeColors().length+' coul.)'+(state.solid?' \u00b7 Remparts':'')+(state.mono?' \u00b7 Mono':'');
   }
 
   let pendingKeep = null;
 
-  function startGame(solid){
-    state = freshRoundState(pendingKeep, 1, null, solid===true);
+  function startGame(solid, mono){
+    state = freshRoundState(pendingKeep, 1, null, solid===true, mono===true);
     pendingKeep = null;
     currentTab='carte';
     document.getElementById('screen-mode').classList.add('hidden');
@@ -1635,6 +1664,7 @@
       if(typeof state.magnetRangeActive!=='boolean') state.magnetRangeActive=true;
       if(typeof state.elapsedMs!=='number') state.elapsedMs=0;
       if(typeof state.solid!=='boolean') state.solid=false;
+      if(typeof state.mono!=='boolean') state.mono=false;
       state.openCache = null;
       state.levelOver = false;
       if(!state.challenge || typeof state.challenge!=='object') state.challenge=null;
@@ -1747,7 +1777,7 @@
       if(!arr) return;
       for(let i=0; i<arr.length && state.tray.length<getTrayCap(); i++){
         const k = arr[i];
-        if(k && !k.taken){
+        if(k && !k.taken && canTakeKey(k)){
           arr[i] = {taken:true};
           state.tray.push(k);
           collected++;
@@ -1885,7 +1915,7 @@
     if((state.level||1)>=MAX_LEVEL) unlockAchievement('niveau_max');
     if(priceTierMaxed()) unlockAchievement('valeur_max');
     if((state.level||1)>=5) unlockAchievement('niveau_5');
-    if((state.level||1)>=10) unlockAchievement('niveau_10');
+    if((state.level||1)>=MAX_LEVEL-1) unlockAchievement('niveau_10');
     if(state.hasMagnet && magnetRangeMaxed()) unlockAchievement('aimant_max');
     if(colorRecallMaxed()) unlockAchievement('rappel_max');
   }
@@ -2228,6 +2258,11 @@
       el.classList.add('shake'); setTimeout(()=>el.classList.remove('shake'), 300);
       return;
     }
+    if(!canTakeKey(key)){
+      document.getElementById('cache-toast').textContent = monoRefusalText();
+      el.classList.add('shake'); setTimeout(()=>el.classList.remove('shake'), 300);
+      return;
+    }
     const idx = info.arr.indexOf(key);
     if(idx!==-1) info.arr[idx] = {taken:true};
     state.tray.push(key);
@@ -2258,6 +2293,7 @@
       d.style.background=colorOf(k.color).hex; d.textContent=k.char;
       d.addEventListener('click', ()=>{
         if(state.tray.length>=getTrayCap()) return;
+        if(!canTakeKey(k)){ showGameToast(monoRefusalText()); return; }
         state.groundPiles[coordKey] = state.groundPiles[coordKey].filter(x=>x.uid!==k.uid);
         state.tray.push(k);
         renderShelf(); renderHud(); saveGame();
@@ -2560,8 +2596,10 @@
   const existingSave = loadSavedGame();
   if(existingSave) document.getElementById('resume-btn').classList.remove('hidden');
 
-  document.getElementById('btn-start').addEventListener('click', ()=>startGame(false));
-  document.getElementById('btn-start-solid').addEventListener('click', ()=>startGame(true));
+  document.getElementById('btn-start').addEventListener('click', ()=>startGame(false,false));
+  document.getElementById('btn-start-solid').addEventListener('click', ()=>startGame(true,false));
+  document.getElementById('btn-start-mono').addEventListener('click', ()=>startGame(false,true));
+  document.getElementById('btn-start-both').addEventListener('click', ()=>startGame(true,true));
   document.getElementById('resume-btn').addEventListener('click', resumeGame);
   document.getElementById('ach-open-btn-home').addEventListener('click', openAchievements);
   document.getElementById('ach-close-btn').addEventListener('click', closeAchievements);
