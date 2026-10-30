@@ -144,6 +144,7 @@
   .map-actions #enter-btn{ flex:2; }
   #enter-btn{ margin-bottom:0; }
   .toast:empty{ display:none; }
+  .tray-count{ text-align:center; font-size:0.6rem; color:var(--muted); margin:-2px 0 6px; }
   .tile.tappable{ cursor:pointer; }
   @media (max-width: 859px){
     #map-hint{ display:none; }
@@ -361,6 +362,7 @@
 
           <div class="section-label">Sac</div>
           <div class="tray-strip" id="map-tray"></div>
+          <div class="tray-count" id="map-tray-count"></div>
           <div class="drop-buttons">
             <button class="btn secondary" id="map-drop-btn">Déposer 1 touche</button>
             <button class="btn secondary" id="map-drop-all-btn">Tout déposer</button>
@@ -413,10 +415,11 @@
       <div class="section-label" id="cache-subtitle"></div>
       <button class="btn secondary" id="cache-magnet-btn" style="margin-bottom:10px;">🧲 Tout ramasser (Aimant)</button>
       <div class="key-grid" id="cache-grid"></div>
-      <div class="toast" id="cache-toast"></div>
 
       <div class="section-label">Sac</div>
       <div class="tray-strip" id="cache-tray"></div>
+      <div class="tray-count" id="cache-tray-count"></div>
+      <div class="toast" id="cache-toast"></div>
       <div class="drop-buttons">
         <button class="btn secondary" id="cache-drop-btn">Déposer 1 touche</button>
         <button class="btn secondary" id="cache-drop-all-btn">Tout déposer</button>
@@ -444,6 +447,7 @@
 
       <div class="section-label">Sac</div>
       <div class="tray-strip" id="shelf-tray"></div>
+      <div class="tray-count" id="shelf-tray-count"></div>
       <div class="drop-buttons">
         <button class="btn secondary" id="shelf-drop-btn">Déposer 1 touche</button>
         <button class="btn secondary" id="shelf-drop-all-btn">Tout déposer</button>
@@ -475,7 +479,8 @@
   <div class="card" style="max-width:340px; text-align:left; max-height:80vh; overflow-y:auto;">
     <h2 style="text-align:center;">Succès</h2>
     <div id="ach-list"></div>
-    <button class="btn" id="ach-close-btn" style="margin-top:12px;">Fermer</button>
+    <button class="btn secondary" id="ach-reset-btn" style="margin-top:12px;">Réinitialiser les succès</button>
+    <button class="btn" id="ach-close-btn" style="margin-top:8px;">Fermer</button>
   </div>
 </div>
 
@@ -498,6 +503,7 @@
     </div>
 
     <button class="btn secondary" id="settings-stats-btn" style="margin-top:6px;">📊 Statistiques &amp; records</button>
+    <button class="btn secondary" id="settings-ach-reset-btn" style="margin-top:6px;">Réinitialiser les succès</button>
 
     <div class="section-label">Raccourcis clavier (ordinateur)</div>
     <div id="keybind-list"></div>
@@ -778,6 +784,30 @@
       text.innerHTML = '<b>'+ach.label+'</b><span>'+ach.desc+'</span>';
       row.appendChild(icon); row.appendChild(text);
       list.appendChild(row);
+    });
+  }
+  function resetAchievements(){
+    achievements = { unlocked:{}, totalRounds:0 };
+    saveAchievements();
+    renderAchievementsInto('ach-list');
+    renderAchievementsInto('ach-list-tab');
+    showGameToast('Succès réinitialisés');
+  }
+  // Two-tap confirmation (no browser dialogs): first tap arms the button, second tap confirms.
+  function armResetButton(btnId){
+    const btn = document.getElementById(btnId);
+    if(!btn) return;
+    const label = btn.textContent;
+    btn.addEventListener('click', ()=>{
+      if(btn.dataset.armed==='1'){
+        clearTimeout(btn._armTimer);
+        btn.dataset.armed='0'; btn.textContent = label;
+        resetAchievements();
+        return;
+      }
+      btn.dataset.armed='1';
+      btn.textContent = 'Appuie encore pour confirmer (tout effacer)';
+      btn._armTimer = setTimeout(()=>{ btn.dataset.armed='0'; btn.textContent = label; }, 4000);
     });
   }
   function openAchievements(){ renderAchievementsInto('ach-list'); document.getElementById('ach-overlay').classList.add('show'); }
@@ -1936,6 +1966,8 @@
       el.appendChild(d);
     });
     el.scrollTop = prevScroll;
+    const countEl=document.getElementById(containerId+'-count');
+    if(countEl) countEl.textContent = state.tray.length+' / '+getTrayCap()+' dans le sac'+(state.mono && state.tray.length ? ' \u00b7 couleur : '+colorOf(state.tray[0].color).label : '');
   }
 
   function updateDropOneButton(btnId){ document.getElementById(btnId).disabled = state.tray.length===0; }
@@ -2624,6 +2656,8 @@
   document.getElementById('shop-price-btn').addEventListener('click', buyPriceTier);
   document.getElementById('shop-magnet-range-btn').addEventListener('click', buyMagnetRange);
   document.getElementById('shop-magnet-range-toggle-btn').addEventListener('click', toggleMagnetRange);
+  armResetButton('ach-reset-btn');
+  armResetButton('settings-ach-reset-btn');
   document.getElementById('stats-open-btn-home').addEventListener('click', openStats);
   document.getElementById('stats-close-btn').addEventListener('click', closeStats);
   document.getElementById('settings-stats-btn').addEventListener('click', openStats);
